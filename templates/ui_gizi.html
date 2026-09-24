@@ -8,32 +8,52 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
         body {
-            /* Memanggil background.jpg langsung dari folder static */
+            /* Warna dasar ungu cadangan kalau gambar lambat loading */
+            background-color: #6f42c1; 
+            /* Memanggil background.jpg ungu Anda dari folder static */
             background-image: url("{{ url_for('static', filename='background.jpg') }}");
             background-size: cover;
             background-position: center;
             background-attachment: fixed;
             background-repeat: no-repeat;
         }
-        /* Bikin background tabel agak transparan putih biar teks tetap terbaca jelas */
+        
         .card {
-            background-color: rgba(255, 255, 255, 0.92); 
+            background-color: rgba(255, 255, 255, 0.95); 
             border-radius: 10px;
+        }
+        
+        /* Membuat class custom warna ungu */
+        .text-ungu {
+            color: #6f42c1 !important; /* Kode hex warna ungu */
+        }
+        .bg-ungu {
+            background-color: #6f42c1 !important;
+            color: white !important;
+        }
+        .btn-ungu {
+            background-color: #6f42c1;
+            color: white;
+            border: none;
+        }
+        .btn-ungu:hover {
+            background-color: #59339d;
+            color: white;
         }
     </style>
 </head>
 <body>
     <div class="container mt-5">
         <div class="d-flex justify-content-between align-items-center mb-4">
-            <h2 class="text-primary fw-bold" style="text-shadow: 1px 1px 2px white;">Data Status Gizi Anak</h2>
-            <a href="{{ url_for('index') }}" class="btn btn-secondary">Kembali ke Dashboard</a>
+            <h2 class="text-ungu fw-bold" style="text-shadow: 1px 1px 2px rgba(255,255,255,0.8);">Data Status Gizi Anak</h2>
+            <a href="{{ url_for('index') }}" class="btn btn-ungu">Kembali ke Dashboard</a>
         </div>
 
         <div class="card shadow-lg border-0">
             <div class="card-body p-4">
                 <div class="table-responsive">
                     <table class="table table-bordered table-striped table-hover align-middle mb-0">
-                        <thead class="table-primary text-center">
+                        <thead class="bg-ungu text-center">
                             <tr>
                                 <th>No</th>
                                 <th>Nama Anak</th>
@@ -57,7 +77,7 @@
                                     <td>{{ gizi.tb_u }}</td>
                                     <td>{{ gizi.bb_tb }}</td>
                                     <td>{{ gizi.imt_u }}</td>
-                                    <td class="fw-bold text-center text-primary">{{ gizi.kategori_status }}</td>
+                                    <td class="fw-bold text-center text-ungu">{{ gizi.kategori_status }}</td>
                                 </tr>
                                 {% endfor %}
                             {% else %}
