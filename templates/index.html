@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard Pemantauan Anak</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body { 
+            background-color: #e0c3fc; 
+            background-image: linear-gradient(135deg, rgba(74, 20, 140, 0.88), rgba(156, 39, 176, 0.88)), url("{{ url_for('static', filename='background.jpg') }}"); 
+            background-size: cover; 
+            background-attachment: fixed; 
+            font-family: 'Segoe UI', Tahoma, sans-serif; 
+            color: #333; 
+        }
+        .menu-tile { background: rgba(255, 255, 255, 0.9); border-radius: 15px; padding: 20px; text-align: center; transition: 0.3s; box-shadow: 0 5px 15px rgba(0,0,0,0.1); text-decoration: none; color: #4a148c; display: block; }
+        .menu-tile:hover { transform: scale(1.05); background: #ffffff; color: #6a1b9a; }
+        .menu-tile div { font-size: 1.5rem; }
+        .glass-card { background: rgba(255, 255, 255, 0.92); backdrop-filter: blur(12px); border-radius: 15px; border: 1px solid rgba(255, 255, 255, 0.3); box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2); overflow: hidden; }
+        .card-header-custom { background: linear-gradient(135deg, #6a1b9a, #8e24aa); color: white; border-bottom: none; padding: 15px 20px; }
+        .table-custom thead { background-color: #6a1b9a !important; color: white !important; }
+        .text-purple { color: #6a1b9a; }
+    </style>
+</head>
+<body>
+    <div class="container mt-5">
+        <div class="text-center mb-4">
+            <h2 class="text-white fw-bold">✨ MIK<i>AdO</i></h2>
+            <p class="text-white-50">Manajemen Informasi Kesehatan Anak dan Orang tua</p>
+            <span class="badge bg-light text-purple px-3 py-2 fs-6 rounded-pill shadow-sm">
+                Halo, {{ sapaan }} ({{ username }})
+            </span>
+        </div>
+
+        <div class="row g-3 mb-5 justify-content-center">
+            <div class="col-md-2"><a href="#" class="menu-tile"><div>👤</div>Identitas</a></div>
+            <div class="col-md-2"><a href="#" class="menu-tile"><div>📏</div>Pengukuran</a></div>
+            <div class="col-md-2"><a href="{{ url_for('gizi') }}" class="menu-tile"><div>🍎</div>Status Gizi</a></div>
+            <div class="col-md-2"><a href="#" class="menu-tile"><div>📋</div>Riwayat</a></div>
+            <div class="col-md-2"><a href="#" class="menu-tile"><div>📈</div>Perkembangan</a></div>
+        </div>
+
+        <div class="card glass-card mb-5">
+            <div class="card-header-custom d-flex justify-content-between align-items-center">
+                <h4 class="mb-0">Ringkasan Data Anak Terdaftar</h4>
+                {% if role == 'admin' %}
+                    <a href="#" class="btn btn-sm btn-light text-purple fw-bold px-3">+ Tambah Anak</a>
+                {% endif %}
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-custom">
+                            <tr>
+                                <th>NIK Anak</th>
+                                <th>Nama Lengkap</th>
+                                <th>Tanggal Lahir</th>
+                                <th>Nama Orang Tua</th>
+                                <th>Posyandu/Puskesmas</th>
+                                <th>No. KMS</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% if anak_data %}
+                                {% for data in anak_data %}
+                                <tr>
+                                    <td class='px-3'>{{ data.nik_anak }}</td>
+                                    <td class='fw-bold text-dark'>{{ data.nama_lengkap }}</td>
+                                    <td>{{ data.tanggal_lahir }}</td>
+                                    <td>{{ data.nama_ortu }}</td>
+                                    <td><span class='badge bg-info text-dark shadow-sm'>{{ data.posyandu_terdaftar }}</span></td>
+                                    <td>{{ data.no_register_kms }}</td>
+                                </tr>
+                                {% endfor %}
+                            {% else %}
+                                <tr><td colspan='6' class='text-center text-muted py-5'>Belum ada data anak yang dapat ditampilkan.</td></tr>
+                            {% endif %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        
+        <div class="text-center mb-5">
+            <a href="{{ url_for('profil') }}" class="btn btn-info px-4 rounded-pill shadow-sm text-white me-2">Profil</a>
+            <a href="{{ url_for('logout') }}" class="btn btn-danger px-4 rounded-pill shadow-sm">Keluar / Logout</a>
+        </div>
+    </div>
+</body>
+</html>
