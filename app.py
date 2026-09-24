@@ -7,14 +7,17 @@ app = Flask(__name__)
 app.secret_key = 'mikado_rahasia_aman_123'
 
 # ==========================================
-# 1. KONEKSI DATABASE (Pengganti koneksi.php)
+# 1. KONEKSI DATABASE (Sudah di-update ke TiDB Cloud)
 # ==========================================
 def get_db_connection():
     return mysql.connector.connect(
-        host="sql207.infinityfree.com",
-        user="if0_42422230",
-        password="yH9vII3P54P8MGT",
-        database="if0_42422230_db_pemantauan_anak"
+        host="gateway01.ap-southeast-1.prod.aws.tidbcloud.com",
+        port=4000,
+        user="23YJq4NcMhgnK5h.root",
+        password="yu4v6RGpScB6UVoT",
+        database="Mikado",
+        ssl_verify_cert=True,
+        ssl_verify_identity=True
     )
 
 # ==========================================
