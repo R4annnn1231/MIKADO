@@ -110,32 +110,6 @@ def register():
             conn.close()
             return redirect(url_for('register'))
 
-        # Enkripsi password (Spasi sudah disejajarkan)
-        hashed_password = generate_password_hash(password)
-        
-        try:
-            # 1. Simpan ke tabel users
-            cursor.execute("INSERT INTO users (username, password, role) VALUES (%s, %s, 'ortu')", (username, hashed_password))
-            
-            # 2. Simpan ke tabel anak
-            cursor.execute("""
-                INSERT INTO anak (nik_anak, nama_lengkap, tanggal_lahir, jenis_kelamin, 
-                                  nama_ortu, username_ortu, alamat_lengkap, posyandu_terdaftar, 
-                                  no_register_kms, bb_lahir, pb_lahir) 
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-            """, (nik_anak, nama_anak, tanggal_lahir, jenis_kelamin, nama_ortu, username, 
-                  alamat_lengkap, posyandu, no_kms, float(bb_lahir), float(pb_lahir)))
-            
-            conn.commit()
-            flash('Pendaftaran berhasil! Silakan login.', 'success')
-            return redirect(url_for('login'))
-        except Exception as e:
-            conn.rollback()
-            flash(f'Terjadi kesalahan database: {str(e)}', 'danger')
-        finally:
-            conn.close()
-            
-    return render_template('register.html')
         # Enkripsi password
         hashed_password = generate_password_hash(password)
         
@@ -151,33 +125,6 @@ def register():
                 VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             """, (nik_anak, nama_anak, tanggal_lahir, jenis_kelamin, nama_ortu, username, 
                   alamat_lengkap, posyandu, no_kms, float(bb_lahir), float(pb_lahir)))
-            
-            conn.commit()
-            flash('Pendaftaran berhasil! Silakan login.', 'success')
-            return redirect(url_for('login'))
-        except Exception as e:
-            conn.rollback()
-            flash(f'Terjadi kesalahan database: {str(e)}', 'danger')
-        finally:
-            conn.close()
-            
-    return render_template('register.html')
-
-        # Enkripsi password
-        hashed_password = generate_password_hash(password)
-        
-        try:
-            # 1. Simpan ke tabel users
-            cursor.execute("INSERT INTO users (username, password, role) VALUES (%s, %s, 'ortu')", (username, hashed_password))
-            
-            # 2. Simpan ke tabel anak
-            cursor.execute("""
-                INSERT INTO anak (nik_anak, nama_lengkap, tanggal_lahir, jenis_kelamin, 
-                                  nama_ortu, username_ortu, alamat_lengkap, posyandu_terdaftar, 
-                                  no_register_kms, bb_lahir, pb_lahir) 
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-            """, (nik_anak, nama_anak, tanggal_lahir, jenis_kelamin, nama_ortu, username, 
-                  alamat_lengkap, posyandu, no_kms, bb_lahir, pb_lahir))
             
             conn.commit()
             flash('Pendaftaran berhasil! Silakan login.', 'success')
@@ -347,7 +294,6 @@ def pengukuran():
         else:
             imt_u_status = 'Obesitas'
             
-        # Placeholder untuk status lain (Bisa Anda kembangkan nanti jika ada rumus spesifik Z-Score)
         kategori_status = imt_u_status
             
         cursor.execute("""
@@ -385,26 +331,6 @@ def pengukuran():
     conn.close()
     
     return render_template('ui_pengukuran.html', data_pengukuran=data_pengukuran, daftar_anak=daftar_anak, role=session['role'])
-    # 2. Render Tabel Data Pengukuran
-    if session['role'] == 'ortu':
-        cursor.execute("""
-            SELECT p.*, a.nama_lengkap 
-            FROM pengukuran p 
-            JOIN anak a ON p.nik_anak = a.nik_anak 
-            WHERE a.username_ortu = %s
-        """, (session['username'],))
-    else:
-        cursor.execute("""
-            SELECT p.*, a.nama_lengkap 
-            FROM pengukuran p 
-            JOIN anak a ON p.nik_anak = a.nik_anak
-        """)
-        
-    data_pengukuran = cursor.fetchall()
-    conn.close()
-    
-    # Anda perlu memastikan ui_pengukuran.html memiliki struktur form input & script Chart.js
-    return render_template('ui_pengukuran.html', data_pengukuran=data_pengukuran)
 
 
 @app.route('/gizi')
@@ -440,13 +366,31 @@ def gizi():
     return render_template('ui_gizi.html', data_gizi=data_gizi)
 
 
-@app.route('/riwayat')
+@app.route('/riwayat', methods=['GET', 'POST'])
 def riwayat():
     if 'role' not in session:
         return redirect(url_for('login'))
         
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
+    
+    # Tangkap input form Riwayat baru
+    if request.method == 'POST' and session['role'] == 'admin':
+        nik = request.form['nik_anak']
+        imunisasi = request.form['riwayat_imunisasi']
+        asi = request.form['asi_eksklusif']
+        vit_a = request.form['vitamin_a']
+        mpasi = request.form['riwayat_mpasi']
+        alergi = request.form['riwayat_penyakit_alergi']
+        rawat = request.form['riwayat_rawat_inap']
+        
+        cursor.execute("""
+            INSERT INTO riwayat_kesehatan (nik_anak, riwayat_imunisasi, asi_eksklusif, vitamin_a, riwayat_mpasi, riwayat_penyakit_alergi, riwayat_rawat_inap) 
+            VALUES (%s, %s, %s, %s, %s, %s, %s)
+        """, (nik, imunisasi, asi, vit_a, mpasi, alergi, rawat))
+        conn.commit()
+        flash('Data Riwayat Kesehatan berhasil ditambahkan!', 'success')
+        return redirect(url_for('riwayat'))
     
     if session['role'] == 'ortu':
         cursor.execute("""
@@ -463,8 +407,13 @@ def riwayat():
         """)
         
     data_riwayat = cursor.fetchall()
+    
+    # Untuk dropdown form
+    cursor.execute("SELECT nik_anak, nama_lengkap FROM anak")
+    daftar_anak = cursor.fetchall()
+    
     conn.close()
-    return render_template('ui_riwayat.html', data_riwayat=data_riwayat)
+    return render_template('ui_riwayat.html', data_riwayat=data_riwayat, daftar_anak=daftar_anak, role=session['role'])
 
 
 @app.route('/perkembangan', methods=['GET', 'POST'])
@@ -527,6 +476,7 @@ def perkembangan():
                            nik_terpilih=nik_filter, 
                            checked_tasks=checked_tasks,
                            all_tugas=ALL_TUGAS)
+
 # Menjalankan Server
 if __name__ == '__main__':
     app.run(debug=True, ssl_context='adhoc')
