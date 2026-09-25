@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <title>Riwayat Kesehatan - MIKAdO</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body { background: linear-gradient(rgba(88, 28, 135, 0.9), rgba(126, 34, 206, 0.9)), url("{{ url_for('static', filename='background.jpg') }}") !important; background-size: cover; background-attachment: fixed; min-height: 100vh; }
+        .card { background-color: rgba(255, 255, 255, 0.95); border-radius: 12px; }
+        .bg-ungu { background-color: #6f42c1 !important; color: white !important; }
+        .btn-ungu { background-color: #581c87; color: white; border: none; font-weight: 500; }
+        .btn-ungu:hover { background-color: #4c1d95; color: white; }
+    </style>
+</head>
+<body>
+    <div class="container mt-5 mb-5">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h2 class="text-white fw-bold">Riwayat Kesehatan Tambahan</h2>
+            <div>
+                {% if role == 'admin' %}
+                <button type="button" class="btn btn-light fw-bold me-2" style="color: #6f42c1;" data-bs-toggle="modal" data-bs-target="#modalRiwayat">
+                    + Catat Riwayat
+                </button>
+                {% endif %}
+                <a href="{{ url_for('index') }}" class="btn btn-ungu">Kembali</a>
+            </div>
+        </div>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+          {% if messages %}
+            {% for category, message in messages %}
+              <div class="alert alert-{{ category }} text-center fw-bold">{{ message }}</div>
+            {% endfor %}
+          {% endif %}
+        {% endwith %}
+
+        <div class="card shadow-lg border-0">
+            <div class="card-body p-4">
+                <div class="table-responsive">
+                    <table class="table table-bordered table-striped table-hover align-middle mb-0">
+                        <thead class="bg-ungu text-center">
+                            <tr>
+                                <th>No</th>
+                                <th>Nama Anak</th>
+                                <th>Imunisasi</th>
+                                <th>ASI (0-6 Bln)</th>
+                                <th>Vitamin A</th>
+                                <th>MPASI</th>
+                                <th>Penyakit/Alergi</th>
+                                <th>Rawat Inap</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% if data_riwayat %}
+                                {% for d in data_riwayat %}
+                                <tr>
+                                    <td class="text-center">{{ loop.index }}</td>
+                                    <td class="fw-medium">{{ d.nama_lengkap }}</td>
+                                    <td>{{ d.riwayat_imunisasi }}</td>
+                                    <td class="text-center">{{ d.asi_eksklusif }}</td>
+                                    <td>{{ d.vitamin_a }}</td>
+                                    <td>{{ d.riwayat_mpasi }}</td>
+                                    <td>{{ d.riwayat_penyakit_alergi }}</td>
+                                    <td>{{ d.riwayat_rawat_inap }}</td>
+                                </tr>
+                                {% endfor %}
+                            {% else %}
+                                <tr><td colspan="8" class="text-center text-muted py-4">Belum ada data riwayat.</td></tr>
+                            {% endif %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Form -->
+    {% if role == 'admin' %}
+    <div class="modal fade" id="modalRiwayat" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header bg-ungu text-white">
+                    <h5 class="modal-title fw-bold">Pencatatan Riwayat Kesehatan</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <form method="POST" action="{{ url_for('riwayat') }}">
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Pilih Anak</label>
+                            <select class="form-select" name="nik_anak" required>
+                                <option value="">-- Silakan Pilih --</option>
+                                {% for a in daftar_anak %}
+                                <option value="{{ a.nik_anak }}">{{ a.nama_lengkap }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Riwayat Imunisasi</label>
+                            <textarea class="form-control" name="riwayat_imunisasi" rows="2" placeholder="Contoh: BCG (12/05/2026) - Lengkap"></textarea>
+                        </div>
+                        <div class="row mb-3">
+                            <div class="col-6">
+                                <label class="form-label fw-bold">ASI Eksklusif (0-6 Bulan)</label>
+                                <select class="form-select" name="asi_eksklusif">
+                                    <option value="Ya">Ya</option>
+                                    <option value="Tidak">Tidak</option>
+                                </select>
+                            </div>
+                            <div class="col-6">
+                                <label class="form-label fw-bold">Pemberian Vitamin A</label>
+                                <input type="text" class="form-control" name="vitamin_a" placeholder="Contoh: Kapsul Biru (Feb)">
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Riwayat MP-ASI</label>
+                            <textarea class="form-control" name="riwayat_mpasi" rows="2"></textarea>
+                        </div>
+                        <div class="row">
+                            <div class="col-6">
+                                <label class="form-label fw-bold">Penyakit/Alergi</label>
+                                <textarea class="form-control" name="riwayat_penyakit_alergi" rows="2"></textarea>
+                            </div>
+                            <div class="col-6">
+                                <label class="form-label fw-bold">Rawat Inap</label>
+                                <textarea class="form-control" name="riwayat_rawat_inap" rows="2"></textarea>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="submit" class="btn btn-ungu w-100">Simpan Riwayat Medis</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
