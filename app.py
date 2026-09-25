@@ -407,7 +407,7 @@ def riwayat():
     return render_template('ui_riwayat.html', data_riwayat=data_riwayat)
 
 
-@app.route('/perkembangan')
+@app.route('/perkembangan', methods=['GET', 'POST'])
 def perkembangan():
     if 'role' not in session:
         return redirect(url_for('login'))
@@ -415,24 +415,58 @@ def perkembangan():
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
     
-    if session['role'] == 'ortu':
-        cursor.execute("""
-            SELECT p.*, a.nama_lengkap 
-            FROM pencapaian_perkembangan p 
-            JOIN anak a ON p.nik_anak = a.nik_anak
-            WHERE a.username_ortu = %s
-        """, (session['username'],))
-    else:
-        cursor.execute("""
-            SELECT p.*, a.nama_lengkap 
-            FROM pencapaian_perkembangan p 
-            JOIN anak a ON p.nik_anak = a.nik_anak
-        """)
-        
-    data_perkembangan = cursor.fetchall()
-    conn.close()
-    return render_template('ui_perkembangan.html', data_perkembangan=data_perkembangan)
+    # Kamus Data Tugas Perkembangan dipindah ke Python agar HTML tidak crash
+    ALL_TUGAS = {
+        'Usia 0 - 6 Bulan': [['KP1', 'Mata melirik ke kanan dan ke kiri'], ['TS2', 'Membalas senyum pada orang lain'], ['GK3', 'Menegakkan kepala saat ditengkurapkan'], ['GK4', 'Miring sendiri / Tengkurap mandiri'], ['KA5', 'Mengeluarkan 3 suara berbeda (mengoceh)']],
+        'Usia 6 - 12 Bulan': [['GH6', 'Meraih dan memegang benda di hadapannya'], ['GK7', 'Duduk sendiri tanpa dibantu'], ['GH8', 'Membuka tutup mainan/kotak'], ['TS9', 'Aktif bermain "Ciluk-ba"'], ['GH10', 'Mengambil benda dengan ibu jari dan telunjuk']],
+        'Usia 1 - 2 Tahun': [['GK12', 'Berjalan sendiri tanpa berpegangan'], ['MD14', 'Minum dari gelas sendiri tanpa tumpah'], ['KA16', 'Menyebut 2 kata berbeda dengan benar']],
+        'Usia 2 - 3 Tahun': [['GK24', 'Berlari tanpa sering jatuh'], ['GH26', 'Mencoret-coret dengan alat tulis'], ['KA28', 'Merangkai kalimat tanya atau sangkal'], ['MD31', 'Membuka baju dan melepas celana sendiri']],
+        'Usia 3 - 4 Tahun': [['GK34', 'Berdiri dengan satu kaki tanpa berpegangan'], ['GH36', 'Menggambar garis lurus atau lingkaran'], ['KC38', 'Mengenal dan menyebutkan minimal 1 warna'], ['TS40', 'Mulai bermain bersama teman sebaya']],
+        'Usia 4 - 5 Tahun': [['GK42', 'Melompat dengan satu kaki'], ['GH45', 'Menggambar orang dengan minimal 3 bagian tubuh'], ['KA47', 'Menceritakan kejadian sehari-hari dengan lancar'], ['MD50', 'Mencuci dan mengeringkan tangan sendiri']]
+    }
+    
+    try:
+        # Tangkap input form Checklist Perkembangan
+        if request.method == 'POST' and session['role'] == 'admin':
+            nik = request.form['nik_anak']
+            tugas_list = request.form.getlist('tugas[]') 
+            
+            cursor.execute("DELETE FROM pencapaian_perkembangan WHERE nik_anak = %s", (nik,))
+            for kode in tugas_list:
+                cursor.execute("INSERT INTO pencapaian_perkembangan (nik_anak, kode_tugas) VALUES (%s, %s)", (nik, kode))
+            conn.commit()
+            flash('Capaian perkembangan berhasil diperbarui!', 'success')
+            return redirect(url_for('perkembangan', nik=nik))
 
+        # Ambil data filter anak
+        nik_filter = request.args.get('nik', '')
+        checked_tasks = []
+        if nik_filter:
+            cursor.execute("SELECT kode_tugas FROM pencapaian_perkembangan WHERE nik_anak = %s", (nik_filter,))
+            for row in cursor.fetchall():
+                checked_tasks.append(row['kode_tugas'])
+                
+        if session['role'] == 'ortu':
+            cursor.execute("SELECT nik_anak, nama_lengkap FROM anak WHERE username_ortu = %s", (session['username'],))
+        else:
+            cursor.execute("SELECT nik_anak, nama_lengkap FROM anak")
+            
+        daftar_anak = cursor.fetchall()
+        
+    except Exception as e:
+        flash(f"Gagal memuat data dari database: {str(e)}", "danger")
+        daftar_anak = []
+        checked_tasks = []
+        nik_filter = ''
+    finally:
+        conn.close()
+    
+    return render_template('ui_perkembangan.html', 
+                           daftar_anak=daftar_anak, 
+                           role=session['role'], 
+                           nik_terpilih=nik_filter, 
+                           checked_tasks=checked_tasks,
+                           all_tugas=ALL_TUGAS)
 # Menjalankan Server
 if __name__ == '__main__':
     app.run(debug=True, ssl_context='adhoc')
