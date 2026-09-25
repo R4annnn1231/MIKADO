@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect, url_for, session, flash
+from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify
 from werkzeug.security import generate_password_hash, check_password_hash
 import mysql.connector
 
@@ -7,7 +7,7 @@ app = Flask(__name__)
 app.secret_key = 'mikado_rahasia_aman_123'
 
 # ==========================================
-# 1. KONEKSI DATABASE (Sudah di-update ke TiDB Cloud)
+# 1. KONEKSI DATABASE (TiDB Cloud)
 # ==========================================
 def get_db_connection():
     return mysql.connector.connect(
@@ -21,7 +21,7 @@ def get_db_connection():
     )
 
 # ==========================================
-# 2. SISTEM AUTENTIKASI
+# 2. SISTEM AUTENTIKASI & REGISTRASI
 # ==========================================
 @app.route('/login', methods=['GET', 'POST'])
 def login():
@@ -38,7 +38,7 @@ def login():
         user = cursor.fetchone()
         
         if user:
-            # Menggunakan werkzeug untuk verifikasi hash, setara password_verify di PHP
+            # Verifikasi password
             if check_password_hash(user['password'], password) or user['password'] == password:
                 session['role'] = user['role']
                 session['username'] = user['username']
@@ -71,32 +71,67 @@ def register():
         return redirect(url_for('index'))
         
     if request.method == 'POST':
+        # Data Akun (Tabel users)
         username = request.form['username']
-        # Enkripsi password menggunakan hash Python
-        password = generate_password_hash(request.form['password'])
+        password = request.form['password']
+        
+        # Data Anak (Tabel anak)
         nik_anak = request.form['nik_anak']
         nama_anak = request.form['nama_anak']
+        tanggal_lahir = request.form['tanggal_lahir']
+        jenis_kelamin = request.form['jenis_kelamin']
         nama_ortu = request.form['nama_ortu']
-        
+        alamat_lengkap = request.form['alamat_lengkap']
+        posyandu = request.form['posyandu_terdaftar']
+        no_kms = request.form['no_register_kms']
+        bb_lahir = request.form['bb_lahir']
+        pb_lahir = request.form['pb_lahir']
+
         conn = get_db_connection()
-        cursor = conn.cursor()
+        cursor = conn.cursor(dictionary=True)
         
+        # Cek apakah username atau NIK sudah terdaftar
         cursor.execute("SELECT * FROM users WHERE username = %s", (username,))
         if cursor.fetchone():
-            flash('Username sudah digunakan! Silakan pilih username lain.', 'danger')
-        else:
-            cursor.execute("INSERT INTO users (username, password, role) VALUES (%s, %s, 'ortu')", (username, password))
-            cursor.execute("INSERT IGNORE INTO anak (nik_anak, nama_lengkap, nama_ortu, username_ortu) VALUES (%s, %s, %s, %s)", (nik_anak, nama_anak, nama_ortu, username))
+            flash('Username sudah digunakan! Silakan pilih yang lain.', 'danger')
+            conn.close()
+            return redirect(url_for('register'))
+            
+        cursor.execute("SELECT * FROM anak WHERE nik_anak = %s", (nik_anak,))
+        if cursor.fetchone():
+            flash('NIK Anak sudah terdaftar di sistem!', 'danger')
+            conn.close()
+            return redirect(url_for('register'))
+
+        # Enkripsi password
+        hashed_password = generate_password_hash(password)
+        
+        try:
+            # 1. Simpan ke tabel users
+            cursor.execute("INSERT INTO users (username, password, role) VALUES (%s, %s, 'ortu')", (username, hashed_password))
+            
+            # 2. Simpan ke tabel anak
+            cursor.execute("""
+                INSERT INTO anak (nik_anak, nama_lengkap, tanggal_lahir, jenis_kelamin, 
+                                  nama_ortu, username_ortu, alamat_lengkap, posyandu_terdaftar, 
+                                  no_register_kms, bb_lahir, pb_lahir) 
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            """, (nik_anak, nama_anak, tanggal_lahir, jenis_kelamin, nama_ortu, username, 
+                  alamat_lengkap, posyandu, no_kms, bb_lahir, pb_lahir))
+            
             conn.commit()
             flash('Pendaftaran berhasil! Silakan login.', 'success')
             return redirect(url_for('login'))
+        except Exception as e:
+            conn.rollback()
+            flash(f'Terjadi kesalahan database: {str(e)}', 'danger')
+        finally:
+            conn.close()
             
-        conn.close()
-        
     return render_template('register.html')
 
 # ==========================================
-# 3. MANAJEMEN HALAMAN UTAMA (DASHBOARD)
+# 3. MANAJEMEN HALAMAN UTAMA & PROFIL
 # ==========================================
 @app.route('/')
 def index():
@@ -106,7 +141,6 @@ def index():
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
     
-    # Logika Filter Role: Menggabungkan index.php dan index_ortu.php
     if session['role'] == 'ortu':
         cursor.execute("SELECT * FROM anak WHERE username_ortu = %s", (session['username'],))
         sapaan = "Orang Tua"
@@ -119,9 +153,6 @@ def index():
     
     return render_template('index.html', anak_data=anak_data, sapaan=sapaan, role=session['role'], username=session['username'])
 
-# ==========================================
-# 4. MANAJEMEN PROFIL & DATA
-# ==========================================
 @app.route('/profil', methods=['GET', 'POST'])
 def profil():
     if 'role' not in session:
@@ -156,30 +187,11 @@ def profil():
         
     return render_template('profil.html', username=session['username'])
 
-@app.route('/gizi')
-def gizi():
+@app.route('/edit_anak/<nik>', methods=['GET', 'POST'])
+def edit_anak(nik):
     if 'role' not in session:
         return redirect(url_for('login'))
         
-    conn = get_db_connection()
-    cursor = conn.cursor(dictionary=True)
-    
-    # Query persis seperti ui_gizi.php
-    query = """
-        SELECT anak.nama_lengkap, pengukuran.usia_bulan, status_gizi.* 
-        FROM status_gizi 
-        JOIN pengukuran ON status_gizi.id_pengukuran = pengukuran.id_pengukuran 
-        JOIN anak ON pengukuran.nik_anak = anak.nik_anak 
-        ORDER BY pengukuran.tanggal_pengukuran DESC
-    """
-    cursor.execute(query)
-    data_gizi = cursor.fetchall()
-    conn.close()
-    
-    return render_template('ui_gizi.html', data_gizi=data_gizi)
-
-@app.route('/edit_anak/<nik>', methods=['GET', 'POST'])
-def edit_anak(nik):
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
     
@@ -195,6 +207,156 @@ def edit_anak(nik):
     data = cursor.fetchone()
     conn.close()
     return render_template('edit_anak.html', data=data)
+
+# ==========================================
+# 4. RUTE 5 MENU UTAMA MIKAdO
+# ==========================================
+
+@app.route('/identitas')
+def identitas():
+    if 'role' not in session:
+        return redirect(url_for('login'))
+        
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    
+    if session['role'] == 'ortu':
+        cursor.execute("SELECT * FROM anak WHERE username_ortu = %s", (session['username'],))
+    else:
+        cursor.execute("SELECT * FROM anak")
+        
+    data_anak = cursor.fetchall()
+    conn.close()
+    return render_template('ui_identitas.html', data_anak=data_anak)
+
+
+@app.route('/pengukuran', methods=['GET', 'POST'])
+def pengukuran():
+    if 'role' not in session:
+        return redirect(url_for('login'))
+        
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    
+    # 1. Endpoint AJAX untuk merespons permintaan Grafik KMS Antropometri
+    grafik_nik = request.args.get('grafik_nik')
+    if grafik_nik:
+        if session['role'] == 'ortu':
+            cursor.execute("SELECT usia_bulan, berat_badan FROM pengukuran WHERE nik_anak=%s AND nik_anak IN (SELECT nik_anak FROM anak WHERE username_ortu=%s) ORDER BY usia_bulan ASC", (grafik_nik, session['username']))
+        else:
+            cursor.execute("SELECT usia_bulan, berat_badan FROM pengukuran WHERE nik_anak=%s ORDER BY usia_bulan ASC", (grafik_nik,))
+        
+        data_grafik = cursor.fetchall()
+        conn.close()
+        return jsonify(data_grafik)
+
+    # 2. Render Tabel Data Pengukuran
+    if session['role'] == 'ortu':
+        cursor.execute("""
+            SELECT p.*, a.nama_lengkap 
+            FROM pengukuran p 
+            JOIN anak a ON p.nik_anak = a.nik_anak 
+            WHERE a.username_ortu = %s
+        """, (session['username'],))
+    else:
+        cursor.execute("""
+            SELECT p.*, a.nama_lengkap 
+            FROM pengukuran p 
+            JOIN anak a ON p.nik_anak = a.nik_anak
+        """)
+        
+    data_pengukuran = cursor.fetchall()
+    conn.close()
+    
+    # Anda perlu memastikan ui_pengukuran.html memiliki struktur form input & script Chart.js
+    return render_template('ui_pengukuran.html', data_pengukuran=data_pengukuran)
+
+
+@app.route('/gizi')
+def gizi():
+    if 'role' not in session:
+        return redirect(url_for('login'))
+        
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    
+    if session['role'] == 'ortu':
+        query = """
+            SELECT a.nama_lengkap, p.usia_bulan, s.bb_u, s.tb_u, s.bb_tb, s.imt_u, s.kategori_status 
+            FROM status_gizi s
+            JOIN pengukuran p ON s.id_pengukuran = p.id_pengukuran
+            JOIN anak a ON p.nik_anak = a.nik_anak
+            WHERE a.username_ortu = %s
+            ORDER BY p.tanggal_pengukuran DESC
+        """
+        cursor.execute(query, (session['username'],))
+    else:
+        query = """
+            SELECT a.nama_lengkap, p.usia_bulan, s.bb_u, s.tb_u, s.bb_tb, s.imt_u, s.kategori_status 
+            FROM status_gizi s
+            JOIN pengukuran p ON s.id_pengukuran = p.id_pengukuran
+            JOIN anak a ON p.nik_anak = a.nik_anak
+            ORDER BY p.tanggal_pengukuran DESC
+        """
+        cursor.execute(query)
+        
+    data_gizi = cursor.fetchall()
+    conn.close()
+    return render_template('ui_gizi.html', data_gizi=data_gizi)
+
+
+@app.route('/riwayat')
+def riwayat():
+    if 'role' not in session:
+        return redirect(url_for('login'))
+        
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    
+    if session['role'] == 'ortu':
+        cursor.execute("""
+            SELECT r.*, a.nama_lengkap 
+            FROM riwayat_kesehatan r 
+            JOIN anak a ON r.nik_anak = a.nik_anak
+            WHERE a.username_ortu = %s
+        """, (session['username'],))
+    else:
+        cursor.execute("""
+            SELECT r.*, a.nama_lengkap 
+            FROM riwayat_kesehatan r 
+            JOIN anak a ON r.nik_anak = a.nik_anak
+        """)
+        
+    data_riwayat = cursor.fetchall()
+    conn.close()
+    return render_template('ui_riwayat.html', data_riwayat=data_riwayat)
+
+
+@app.route('/perkembangan')
+def perkembangan():
+    if 'role' not in session:
+        return redirect(url_for('login'))
+        
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    
+    if session['role'] == 'ortu':
+        cursor.execute("""
+            SELECT p.*, a.nama_lengkap 
+            FROM pencapaian_perkembangan p 
+            JOIN anak a ON p.nik_anak = a.nik_anak
+            WHERE a.username_ortu = %s
+        """, (session['username'],))
+    else:
+        cursor.execute("""
+            SELECT p.*, a.nama_lengkap 
+            FROM pencapaian_perkembangan p 
+            JOIN anak a ON p.nik_anak = a.nik_anak
+        """)
+        
+    data_perkembangan = cursor.fetchall()
+    conn.close()
+    return render_template('ui_perkembangan.html', data_perkembangan=data_perkembangan)
 
 # Menjalankan Server
 if __name__ == '__main__':
