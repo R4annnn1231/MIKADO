@@ -250,6 +250,81 @@ def pengukuran():
         conn.close()
         return jsonify(data_grafik)
 
+    # 2. Tangkap Data Input Baru (Mode Admin) & Hitung Gizi Otomatis
+    if request.method == 'POST' and session['role'] == 'admin':
+        nik_anak = request.form['nik_anak']
+        tgl_ukur = request.form['tanggal_pengukuran']
+        usia = float(request.form['usia_bulan'])
+        bb = float(request.form['berat_badan'])
+        tb = float(request.form['tinggi_badan'])
+        lingkar = request.form.get('lingkar_kepala', 0)
+        lila = request.form.get('lila', 0)
+        
+        # Simpan ke tabel pengukuran
+        cursor.execute("""
+            INSERT INTO pengukuran (nik_anak, tanggal_pengukuran, usia_bulan, berat_badan, tinggi_badan, lingkar_kepala, lila) 
+            VALUES (%s, %s, %s, %s, %s, %s, %s)
+        """, (nik_anak, tgl_ukur, usia, bb, tb, lingkar, lila))
+        
+        id_pengukuran = cursor.lastrowid # Ambil ID yang baru saja masuk
+        
+        # LOGIKA PERHITUNGAN STATUS GIZI (IMT)
+        tb_m = tb / 100.0 # Ubah cm ke meter
+        if tb_m > 0:
+            imt = round(bb / (tb_m * tb_m), 1)
+        else:
+            imt = 0
+            
+        # Penentuan Kategori IMT/U Standar Dasar
+        if imt < 13.5:
+            imt_u_status = 'Gizi Buruk'
+        elif 13.5 <= imt < 14.5:
+            imt_u_status = 'Gizi Kurang'
+        elif 14.5 <= imt <= 18.5:
+            imt_u_status = 'Normal'
+        elif 18.5 < imt <= 19.5:
+            imt_u_status = 'Beresiko Lebih'
+        else:
+            imt_u_status = 'Obesitas'
+            
+        # Placeholder untuk status lain (Bisa Anda kembangkan nanti jika ada rumus spesifik Z-Score)
+        kategori_status = imt_u_status
+            
+        cursor.execute("""
+            INSERT INTO status_gizi (id_pengukuran, bb_u, tb_u, bb_tb, imt_u, kategori_status)
+            VALUES (%s, %s, %s, %s, %s, %s)
+        """, (id_pengukuran, "Sesuai Umur", "Normal", "Normal", imt_u_status, kategori_status))
+        
+        conn.commit()
+        flash('Data Pengukuran berhasil ditambahkan & Status Gizi diperbarui!', 'success')
+        return redirect(url_for('pengukuran'))
+
+    # 3. Render Tabel Data Pengukuran
+    if session['role'] == 'ortu':
+        cursor.execute("""
+            SELECT p.*, a.nama_lengkap 
+            FROM pengukuran p 
+            JOIN anak a ON p.nik_anak = a.nik_anak 
+            WHERE a.username_ortu = %s
+            ORDER BY p.tanggal_pengukuran DESC
+        """, (session['username'],))
+    else:
+        cursor.execute("""
+            SELECT p.*, a.nama_lengkap 
+            FROM pengukuran p 
+            JOIN anak a ON p.nik_anak = a.nik_anak
+            ORDER BY p.tanggal_pengukuran DESC
+        """)
+        
+    data_pengukuran = cursor.fetchall()
+    
+    # Tarik daftar anak untuk dropdown form
+    cursor.execute("SELECT nik_anak, nama_lengkap FROM anak")
+    daftar_anak = cursor.fetchall()
+    
+    conn.close()
+    
+    return render_template('ui_pengukuran.html', data_pengukuran=data_pengukuran, daftar_anak=daftar_anak, role=session['role'])
     # 2. Render Tabel Data Pengukuran
     if session['role'] == 'ortu':
         cursor.execute("""
