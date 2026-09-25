@@ -71,21 +71,28 @@ def register():
         return redirect(url_for('index'))
         
     if request.method == 'POST':
-        # Data Akun (Tabel users)
-        username = request.form['username']
-        password = request.form['password']
+        # Menggunakan .get() agar tidak crash 400 Bad Request jika form HTML belum terupdate
+        username = request.form.get('username')
+        password = request.form.get('password')
         
         # Data Anak (Tabel anak)
-        nik_anak = request.form['nik_anak']
-        nama_anak = request.form['nama_anak']
-        tanggal_lahir = request.form['tanggal_lahir']
-        jenis_kelamin = request.form['jenis_kelamin']
-        nama_ortu = request.form['nama_ortu']
-        alamat_lengkap = request.form['alamat_lengkap']
-        posyandu = request.form['posyandu_terdaftar']
-        no_kms = request.form['no_register_kms']
-        bb_lahir = request.form['bb_lahir']
-        pb_lahir = request.form['pb_lahir']
+        nik_anak = request.form.get('nik_anak')
+        nama_anak = request.form.get('nama_anak')
+        tanggal_lahir = request.form.get('tanggal_lahir')
+        jenis_kelamin = request.form.get('jenis_kelamin')
+        nama_ortu = request.form.get('nama_ortu')
+        alamat_lengkap = request.form.get('alamat_lengkap')
+        posyandu = request.form.get('posyandu_terdaftar')
+        no_kms = request.form.get('no_register_kms')
+        
+        # Penanganan khusus angka agar tidak error jika kosong
+        bb_lahir = request.form.get('bb_lahir') or 0
+        pb_lahir = request.form.get('pb_lahir') or 0
+
+        # Validasi ringan
+        if not username or not password or not nik_anak:
+            flash('Gagal mendaftar: Pastikan form HTML sudah versi terbaru dan terisi semua!', 'danger')
+            return redirect(url_for('register'))
 
         conn = get_db_connection()
         cursor = conn.cursor(dictionary=True)
@@ -102,6 +109,33 @@ def register():
             flash('NIK Anak sudah terdaftar di sistem!', 'danger')
             conn.close()
             return redirect(url_for('register'))
+
+        # Enkripsi password
+        hashed_password = generate_password_hash(password)
+        
+        try:
+            # 1. Simpan ke tabel users
+            cursor.execute("INSERT INTO users (username, password, role) VALUES (%s, %s, 'ortu')", (username, hashed_password))
+            
+            # 2. Simpan ke tabel anak
+            cursor.execute("""
+                INSERT INTO anak (nik_anak, nama_lengkap, tanggal_lahir, jenis_kelamin, 
+                                  nama_ortu, username_ortu, alamat_lengkap, posyandu_terdaftar, 
+                                  no_register_kms, bb_lahir, pb_lahir) 
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            """, (nik_anak, nama_anak, tanggal_lahir, jenis_kelamin, nama_ortu, username, 
+                  alamat_lengkap, posyandu, no_kms, float(bb_lahir), float(pb_lahir)))
+            
+            conn.commit()
+            flash('Pendaftaran berhasil! Silakan login.', 'success')
+            return redirect(url_for('login'))
+        except Exception as e:
+            conn.rollback()
+            flash(f'Terjadi kesalahan database: {str(e)}', 'danger')
+        finally:
+            conn.close()
+            
+    return render_template('register.html')
 
         # Enkripsi password
         hashed_password = generate_password_hash(password)
