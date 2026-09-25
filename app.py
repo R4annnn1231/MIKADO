@@ -71,7 +71,7 @@ def register():
         return redirect(url_for('index'))
         
     if request.method == 'POST':
-        # Menggunakan .get() agar tidak crash 400 Bad Request jika form HTML belum terupdate
+        # Menggunakan .get() agar tidak crash 400 Bad Request
         username = request.form.get('username')
         password = request.form.get('password')
         
@@ -110,6 +110,32 @@ def register():
             conn.close()
             return redirect(url_for('register'))
 
+        # Enkripsi password (Spasi sudah disejajarkan)
+        hashed_password = generate_password_hash(password)
+        
+        try:
+            # 1. Simpan ke tabel users
+            cursor.execute("INSERT INTO users (username, password, role) VALUES (%s, %s, 'ortu')", (username, hashed_password))
+            
+            # 2. Simpan ke tabel anak
+            cursor.execute("""
+                INSERT INTO anak (nik_anak, nama_lengkap, tanggal_lahir, jenis_kelamin, 
+                                  nama_ortu, username_ortu, alamat_lengkap, posyandu_terdaftar, 
+                                  no_register_kms, bb_lahir, pb_lahir) 
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            """, (nik_anak, nama_anak, tanggal_lahir, jenis_kelamin, nama_ortu, username, 
+                  alamat_lengkap, posyandu, no_kms, float(bb_lahir), float(pb_lahir)))
+            
+            conn.commit()
+            flash('Pendaftaran berhasil! Silakan login.', 'success')
+            return redirect(url_for('login'))
+        except Exception as e:
+            conn.rollback()
+            flash(f'Terjadi kesalahan database: {str(e)}', 'danger')
+        finally:
+            conn.close()
+            
+    return render_template('register.html')
         # Enkripsi password
         hashed_password = generate_password_hash(password)
         
