@@ -39,6 +39,17 @@
             background-color: #4c1d95;
             color: white;
         }
+        
+        /* Modifikasi untuk Accordion Rekomendasi Menu */
+        .accordion-button:not(.collapsed) {
+            color: #581c87;
+            background-color: #f3e8ff;
+            box-shadow: inset 0 -1px 0 rgba(0,0,0,.125);
+        }
+        .accordion-button:focus {
+            box-shadow: 0 0 0 0.25rem rgba(111, 66, 193, 0.25);
+            border-color: #6f42c1;
+        }
     </style>
 </head>
 <body>
@@ -57,11 +68,12 @@
                                 <th>No</th>
                                 <th>Nama Anak</th>
                                 <th>Usia (Bulan)</th>
-                                <th>BB/U (Berat Badan)</th>
-                                <th>TB/U (Tinggi Badan)</th>
+                                <th>BB/U</th>
+                                <th>TB/U</th>
                                 <th>BB/TB</th>
                                 <th>IMT/U</th>
                                 <th>Kategori Status</th>
+                                <th>Rekomendasi Menu</th> <!-- Kolom Baru Ditambahkan -->
                             </tr>
                         </thead>
                         <tbody>
@@ -71,16 +83,22 @@
                                     <td class="text-center">{{ loop.index }}</td>
                                     <td class="fw-medium">{{ gizi.nama_lengkap }}</td>
                                     <td class="text-center">{{ gizi.usia_bulan }}</td>
-                                    <td>{{ gizi.bb_u }}</td>
-                                    <td>{{ gizi.tb_u }}</td>
-                                    <td>{{ gizi.bb_tb }}</td>
-                                    <td>{{ gizi.imt_u }}</td>
+                                    <td class="text-center">{{ gizi.bb_u }}</td>
+                                    <td class="text-center">{{ gizi.tb_u }}</td>
+                                    <td class="text-center">{{ gizi.bb_tb }}</td>
+                                    <td class="text-center">{{ gizi.imt_u }}</td>
                                     <td class="fw-bold text-center text-ungu">{{ gizi.kategori_status }}</td>
+                                    <td class="text-center">
+                                        <!-- Tombol Pemicu Modal -->
+                                        <button type="button" class="btn btn-sm btn-ungu rounded-pill px-3 shadow-sm" data-bs-toggle="modal" data-bs-target="#modalRekomendasi{{ loop.index }}">
+                                            🍲 Lihat Menu
+                                        </button>
+                                    </td>
                                 </tr>
                                 {% endfor %}
                             {% else %}
                                 <tr>
-                                    <td colspan="8" class="text-center text-muted py-4">Belum ada data status gizi yang tercatat.</td>
+                                    <td colspan="9" class="text-center text-muted py-4">Belum ada data status gizi yang tercatat.</td>
                                 </tr>
                             {% endif %}
                         </tbody>
@@ -89,5 +107,78 @@
             </div>
         </div>
     </div>
+
+    <!-- ========================================== -->
+    <!-- BAGIAN MODAL REKOMENDASI GIZI              -->
+    <!-- ========================================== -->
+    {% if data_gizi %}
+        {% for gizi in data_gizi %}
+        <div class="modal fade" id="modalRekomendasi{{ loop.index }}" tabindex="-1" aria-labelledby="modalLabel{{ loop.index }}" aria-hidden="true">
+            <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+                <div class="modal-content">
+                    <div class="modal-header bg-ungu text-white border-0">
+                        <h5 class="modal-title fw-bold" id="modalLabel{{ loop.index }}">
+                            Rekomendasi Menu untuk {{ gizi.nama_lengkap }} ({{ gizi.usia_bulan }} Bulan)
+                        </h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body p-4">
+                        
+                        <div class="alert alert-info mb-4 border-0 shadow-sm" role="alert">
+                            <strong>Status Gizi Saat Ini:</strong> {{ gizi.kategori_status }}
+                        </div>
+
+                        {% if gizi.rekomendasi and gizi.rekomendasi|length > 0 %}
+                            <h6 class="fw-bold text-ungu mb-3">Daftar Pilihan Menu:</h6>
+                            <div class="accordion shadow-sm" id="accordionResep{{ loop.index }}">
+                                
+                                {% for resep in gizi.rekomendasi %}
+                                <div class="accordion-item border-0 border-bottom">
+                                    <h2 class="accordion-header" id="heading{{ loop.index }}_{{ loop.index0 }}">
+                                        <button class="accordion-button fw-bold {% if not loop.first %}collapsed{% endif %}" type="button" data-bs-toggle="collapse" data-bs-target="#collapse{{ loop.index }}_{{ loop.index0 }}" aria-expanded="{% if loop.first %}true{% else %}false{% endif %}" aria-controls="collapse{{ loop.index }}_{{ loop.index0 }}">
+                                            🍽️ {{ resep.nama_menu }}
+                                        </button>
+                                    </h2>
+                                    <div id="collapse{{ loop.index }}_{{ loop.index0 }}" class="accordion-collapse collapse {% if loop.first %}show{% endif %}" aria-labelledby="heading{{ loop.index }}_{{ loop.index0 }}" data-bs-parent="#accordionResep{{ loop.index }}">
+                                        <div class="accordion-body bg-light">
+                                            <div class="row">
+                                                <div class="col-md-5 mb-3 mb-md-0">
+                                                    <h6 class="fw-bold text-ungu border-bottom pb-2">Bahan-bahan:</h6>
+                                                    <p class="mb-0" style="white-space: pre-line; font-size: 0.95rem;">
+                                                        {{ resep.bahan }}
+                                                    </p>
+                                                </div>
+                                                <div class="col-md-7">
+                                                    <h6 class="fw-bold text-ungu border-bottom pb-2">Cara Membuat:</h6>
+                                                    <p class="mb-0" style="white-space: pre-line; font-size: 0.95rem;">
+                                                        {{ resep.cara_membuat }}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                                
+                            </div>
+                        {% else %}
+                            <div class="text-center py-5">
+                                <h5 class="text-muted">Maaf, menu belum tersedia.</h5>
+                                <p class="text-muted mb-0">Belum ada rekomendasi resep yang cocok untuk rentang usia dan status gizi ini di dalam database.</p>
+                            </div>
+                        {% endif %}
+
+                    </div>
+                    <div class="modal-footer border-0 bg-light">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Tutup</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    {% endif %}
+
+    <!-- Bootstrap JS Bundle (Wajib untuk Modal & Accordion) -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
