@@ -3,7 +3,6 @@ from werkzeug.security import generate_password_hash, check_password_hash
 import mysql.connector
 
 app = Flask(__name__)
-# Secret key digunakan untuk mengamankan sesi (session)
 app.secret_key = 'mikado_rahasia_aman_123'
 
 # ==========================================
@@ -27,7 +26,7 @@ def generate_no_kms(cursor):
     cursor.execute("SELECT no_register_kms FROM anak ORDER BY no_register_kms DESC LIMIT 1")
     last_kms = cursor.fetchone()
     
-    if last_kms and last_kms['no_register_kms']:
+    if last_kms and last_kms.get('no_register_kms'):
         try:
             digits = ''.join(filter(str.isdigit, last_kms['no_register_kms']))
             last_number = int(digits) if digits else 0
@@ -137,7 +136,7 @@ def register():
                   alamat_lengkap, posyandu, no_kms, float(bb_lahir), float(pb_lahir)))
             
             conn.commit()
-            flash(f'Pendaftaran berhasil! No. KMS otomatis Anda: {no_kms}', 'success')
+            flash(f'Pendaftaran berhasil! No. KMS otomatis: {no_kms}', 'success')
             return redirect(url_for('login'))
         except Exception as e:
             conn.rollback()
@@ -256,7 +255,7 @@ def identitas():
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
     
-    # Jika admin menambah anak langsung lewat modul identitas
+    # Tambah Anak Manual oleh Admin via Modal Identitas
     if request.method == 'POST' and session['role'] == 'admin':
         nik_anak = request.form.get('nik_anak')
         nama_anak = request.form.get('nama_anak')
@@ -268,6 +267,12 @@ def identitas():
         bb_lahir = request.form.get('bb_lahir') or 0
         pb_lahir = request.form.get('pb_lahir') or 0
 
+        cursor.execute("SELECT * FROM anak WHERE nik_anak = %s", (nik_anak,))
+        if cursor.fetchone():
+            flash('Gagal: NIK Anak sudah terdaftar di sistem!', 'danger')
+            conn.close()
+            return redirect(url_for('identitas'))
+
         no_kms = generate_no_kms(cursor)
 
         try:
@@ -275,14 +280,16 @@ def identitas():
                 INSERT INTO anak (nik_anak, nama_lengkap, tanggal_lahir, jenis_kelamin, 
                                   nama_ortu, username_ortu, alamat_lengkap, posyandu_terdaftar, 
                                   no_register_kms, bb_lahir, pb_lahir) 
-                VALUES (%s, %s, %s, %s, %s, 'admin_input', %s, %s, %s, %s, %s)
+                VALUES (%s, %s, %s, %s, %s, 'admin_manual', %s, %s, %s, %s, %s)
             """, (nik_anak, nama_anak, tanggal_lahir, jenis_kelamin, nama_ortu, 
                   alamat_lengkap, posyandu, no_kms, float(bb_lahir), float(pb_lahir)))
             conn.commit()
-            flash(f'Anak berhasil ditambahkan dengan No. KMS otomatis: {no_kms}', 'success')
+            flash(f'Anak berhasil ditambahkan! No. KMS otomatis: {no_kms}', 'success')
         except Exception as e:
             conn.rollback()
             flash(f'Gagal menambah data: {str(e)}', 'danger')
+        finally:
+            conn.close()
         return redirect(url_for('identitas'))
 
     cari = request.args.get('cari')
@@ -310,7 +317,6 @@ def pengukuran():
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
     
-    # Endpoint AJAX untuk Grafik KMS
     grafik_nik = request.args.get('grafik_nik')
     if grafik_nik:
         if session['role'] == 'ortu':
@@ -321,7 +327,6 @@ def pengukuran():
         conn.close()
         return jsonify(data_grafik)
 
-    # Tangkap Input & Konversi NIK / No. KMS (Khusus Admin)
     if request.method == 'POST' and session['role'] == 'admin':
         nik_input = request.form['nik_anak']
         cursor.execute("SELECT nik_anak, jenis_kelamin FROM anak WHERE nik_anak = %s OR no_register_kms = %s", (nik_input, nik_input))
@@ -392,7 +397,6 @@ def pengukuran():
         flash('Data pengukuran berhasil ditambahkan!', 'success')
         return redirect(url_for('pengukuran'))
 
-    # Render Tabel Pengukuran berdasarkan Search Engine Admin / Ortu
     cari = request.args.get('cari')
     if session['role'] == 'ortu':
         cursor.execute("""
@@ -495,7 +499,6 @@ def riwayat():
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
     
-    # Tangkap Form POST & Resolusi NIK/KMS
     if request.method == 'POST' and session['role'] == 'admin':
         nik_input = request.form.get('nik_anak')
         cursor.execute("SELECT nik_anak FROM anak WHERE nik_anak = %s OR no_register_kms = %s", (nik_input, nik_input))
