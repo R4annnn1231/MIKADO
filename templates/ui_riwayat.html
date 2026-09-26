@@ -2,39 +2,71 @@
 <html lang="id">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Riwayat Kesehatan - MIKAdO</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
-        body { background: linear-gradient(rgba(88, 28, 135, 0.9), rgba(126, 34, 206, 0.9)), url("{{ url_for('static', filename='background.jpg') }}") !important; background-size: cover; background-attachment: fixed; min-height: 100vh; }
-        .card { background-color: rgba(255, 255, 255, 0.95); border-radius: 12px; }
+        body {
+            background: linear-gradient(rgba(88, 28, 135, 0.9), rgba(126, 34, 206, 0.9)), url("{{ url_for('static', filename='background.jpg') }}") !important;
+            background-size: cover !important; 
+            background-position: center !important; 
+            background-attachment: fixed !important; 
+            min-height: 100vh;
+        }
+        .card { 
+            background-color: rgba(255, 255, 255, 0.96); 
+            border-radius: 12px; 
+            box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+        }
+        .text-ungu { color: #6f42c1 !important; }
         .bg-ungu { background-color: #6f42c1 !important; color: white !important; }
         .btn-ungu { background-color: #581c87; color: white; border: none; font-weight: 500; }
         .btn-ungu:hover { background-color: #4c1d95; color: white; }
+        .badge-imunisasi { background-color: #17a2b8; font-weight: normal; margin-right: 3px; margin-bottom: 3px; display: inline-block;}
+
+        /* CSS Khusus Mode Cetak Laporan (PDF / Print) */
+        @media print {
+            body { background: white !important; padding: 0 !important; }
+            .btn, .d-print-none, form, .modal { display: none !important; }
+            .card { border: none !important; box-shadow: none !important; margin-bottom: 20px !important;}
+            .bg-ungu { background-color: #6f42c1 !important; color: white !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+            table { font-size: 12px; }
+        }
     </style>
 </head>
 <body>
-    <div class="container mt-5 mb-5">
-        <div class="d-flex justify-content-between align-items-center mb-4">
-            <h2 class="text-white fw-bold">Riwayat Kesehatan Tambahan</h2>
+    <div class="container py-5">
+        <!-- HEADER & TOMBOL AKSI -->
+        <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+            <div>
+                <h2 class="text-white fw-bold mb-0">Riwayat Kesehatan Anak</h2>
+                <p class="text-white-50 mb-0">Pemantauan Imunisasi, Vitamin A, dan Alergi</p>
+            </div>
             <div>
                 {% if role == 'admin' %}
-                <button type="button" class="btn btn-light fw-bold me-2" style="color: #6f42c1;" data-bs-toggle="modal" data-bs-target="#modalRiwayat">
-                    + Catat Riwayat
+                <button onclick="window.print()" class="btn btn-warning fw-bold text-dark me-2 d-print-none shadow-sm">🖨️ Cetak Laporan</button>
+                <button type="button" class="btn btn-light text-ungu fw-bold me-2 d-print-none shadow-sm" data-bs-toggle="modal" data-bs-target="#modalTambahRiwayat">
+                    + Tambah Riwayat Baru
                 </button>
                 {% endif %}
-                <a href="{{ url_for('index') }}" class="btn btn-ungu">Kembali</a>
+                <a href="{{ url_for('index') }}" class="btn btn-ungu d-print-none shadow-sm">Kembali</a>
             </div>
         </div>
 
+        <!-- FLASH MESSAGES -->
         {% with messages = get_flashed_messages(with_categories=true) %}
           {% if messages %}
             {% for category, message in messages %}
-              <div class="alert alert-{{ category }} text-center fw-bold">{{ message }}</div>
+              <div class="alert alert-{{ category }} alert-dismissible fade show text-center fw-bold d-print-none" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+              </div>
             {% endfor %}
           {% endif %}
         {% endwith %}
 
-        <div class="card shadow-lg border-0">
+        <!-- AREA TABEL RIWAYAT KESEHATAN -->
+        <div class="card border-0">
             <div class="card-body p-4">
                 <div class="table-responsive">
                     <table class="table table-bordered table-striped table-hover align-middle mb-0">
@@ -42,12 +74,12 @@
                             <tr>
                                 <th>No</th>
                                 <th>Nama Anak</th>
-                                <th>Imunisasi</th>
-                                <th>ASI (0-6 Bln)</th>
+                                <th>Tanggal Catat</th>
+                                <th>Imunisasi Diberikan</th>
                                 <th>Vitamin A</th>
-                                <th>MPASI</th>
-                                <th>Penyakit/Alergi</th>
-                                <th>Rawat Inap</th>
+                                <th>ASI Eksklusif</th>
+                                <th>Riwayat Penyakit / Alergi</th>
+                                {% if role == 'admin' %}<th class="d-print-none">Aksi</th>{% endif %}
                             </tr>
                         </thead>
                         <tbody>
@@ -55,17 +87,34 @@
                                 {% for d in data_riwayat %}
                                 <tr>
                                     <td class="text-center">{{ loop.index }}</td>
-                                    <td class="fw-medium">{{ d.nama_lengkap }}</td>
-                                    <td>{{ d.riwayat_imunisasi }}</td>
-                                    <td class="text-center">{{ d.asi_eksklusif }}</td>
-                                    <td>{{ d.vitamin_a }}</td>
-                                    <td>{{ d.riwayat_mpasi }}</td>
-                                    <td>{{ d.riwayat_penyakit_alergi }}</td>
-                                    <td>{{ d.riwayat_rawat_inap }}</td>
+                                    <td class="fw-bold text-dark">{{ d.nama_lengkap }}</td>
+                                    <td class="text-center">{{ d.tanggal_catat }}</td>
+                                    <td>
+                                        {% if d.imunisasi %}
+                                            {% set list_imunisasi = d.imunisasi.split(',') %}
+                                            {% for im in list_imunisasi %}
+                                                <span class="badge badge-imunisasi px-2 py-1">{{ im.strip() }}</span>
+                                            {% endfor %}
+                                        {% else %}
+                                            <span class="text-muted">-</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-center fw-bold text-primary">{{ d.vitamin_a }}</td>
+                                    <td class="text-center fw-bold text-success">{{ d.asi_eksklusif }}</td>
+                                    <td class="small text-danger fw-medium">{{ d.catatan_penyakit if d.catatan_penyakit else '-' }}</td>
+                                    
+                                    {% if role == 'admin' %}
+                                    <td class="text-center d-print-none">
+                                        <!-- Anda bisa menambahkan rute delete_riwayat di app.py nanti -->
+                                        <a href="#" class="btn btn-sm btn-outline-danger" onclick="return confirm('Hapus data ini?')">🗑️ Hapus</a>
+                                    </td>
+                                    {% endif %}
                                 </tr>
                                 {% endfor %}
                             {% else %}
-                                <tr><td colspan="8" class="text-center text-muted py-4">Belum ada data riwayat.</td></tr>
+                                <tr>
+                                    <td colspan="8" class="text-center text-muted py-4">Belum ada riwayat kesehatan yang dicatat.</td>
+                                </tr>
                             {% endif %}
                         </tbody>
                     </table>
@@ -74,66 +123,114 @@
         </div>
     </div>
 
-    <!-- Modal Form -->
+    <!-- MODAL TAMBAH DATA (KHUSUS ADMIN) -->
     {% if role == 'admin' %}
-    <div class="modal fade" id="modalRiwayat" tabindex="-1">
-        <div class="modal-dialog modal-lg">
+    <div class="modal fade d-print-none" id="modalTambahRiwayat" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-lg">
             <div class="modal-content">
                 <div class="modal-header bg-ungu text-white">
-                    <h5 class="modal-title fw-bold">Pencatatan Riwayat Kesehatan</h5>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                    <h5 class="modal-title fw-bold">Tambah Riwayat Kesehatan Anak</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
-                <form method="POST" action="{{ url_for('riwayat') }}">
+                <!-- Pastikan Action form sesuai dengan rute di app.py Anda -->
+                <form method="POST" action="{{ url_for('riwayat_kesehatan') }}">
                     <div class="modal-body">
-                        <div class="mb-3">
-                            <label class="form-label fw-bold">Pilih Anak</label>
-                            <select class="form-select" name="nik_anak" required>
-                                <option value="">-- Silakan Pilih --</option>
-                                {% for a in daftar_anak %}
-                                <option value="{{ a.nik_anak }}">{{ a.nama_lengkap }}</option>
-                                {% endfor %}
-                            </select>
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label fw-bold">Riwayat Imunisasi</label>
-                            <textarea class="form-control" name="riwayat_imunisasi" rows="2" placeholder="Contoh: BCG (12/05/2026) - Lengkap"></textarea>
-                        </div>
                         <div class="row mb-3">
-                            <div class="col-6">
-                                <label class="form-label fw-bold">ASI Eksklusif (0-6 Bulan)</label>
-                                <select class="form-select" name="asi_eksklusif">
-                                    <option value="Ya">Ya</option>
-                                    <option value="Tidak">Tidak</option>
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold">Pilih Anak</label>
+                                <select class="form-select" name="nik_anak" required>
+                                    <option value="">-- Silakan Pilih Anak --</option>
+                                    {% for a in daftar_anak %}
+                                    <option value="{{ a.nik_anak }}">{{ a.nama_lengkap }}</option>
+                                    {% endfor %}
                                 </select>
                             </div>
-                            <div class="col-6">
-                                <label class="form-label fw-bold">Pemberian Vitamin A</label>
-                                <input type="text" class="form-control" name="vitamin_a" placeholder="Contoh: Kapsul Biru (Feb)">
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold">Tanggal Pencatatan</label>
+                                <input type="date" class="form-control" name="tanggal_catat" required>
                             </div>
                         </div>
+                        
                         <div class="mb-3">
-                            <label class="form-label fw-bold">Riwayat MP-ASI</label>
-                            <textarea class="form-control" name="riwayat_mpasi" rows="2"></textarea>
+                            <label class="form-label fw-bold">Imunisasi yang Telah Diberikan (Centang yang sesuai)</label>
+                            <div class="border p-3 rounded" style="background-color: #f8f9fa;">
+                                <div class="row">
+                                    <div class="col-md-4">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" name="imunisasi" value="HB-0" id="hb0">
+                                            <label class="form-check-label" for="hb0">HB-0 (0-7 Hari)</label>
+                                        </div>
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" name="imunisasi" value="BCG" id="bcg">
+                                            <label class="form-check-label" for="bcg">BCG</label>
+                                        </div>
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" name="imunisasi" value="Polio 1" id="polio1">
+                                            <label class="form-check-label" for="polio1">Polio 1</label>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" name="imunisasi" value="DPT-HB-Hib 1" id="dpt1">
+                                            <label class="form-check-label" for="dpt1">DPT-HB-Hib 1</label>
+                                        </div>
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" name="imunisasi" value="DPT-HB-Hib 2" id="dpt2">
+                                            <label class="form-check-label" for="dpt2">DPT-HB-Hib 2</label>
+                                        </div>
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" name="imunisasi" value="Polio 2/3/4" id="polioLanjut">
+                                            <label class="form-check-label" for="polioLanjut">Polio 2/3/4</label>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" name="imunisasi" value="Campak/Rubella" id="campak">
+                                            <label class="form-check-label" for="campak">Campak / Rubella</label>
+                                        </div>
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" name="imunisasi" value="DPT Lanjutan" id="dptLanjut">
+                                            <label class="form-check-label" for="dptLanjut">DPT Lanjutan</label>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
-                        <div class="row">
-                            <div class="col-6">
-                                <label class="form-label fw-bold">Penyakit/Alergi</label>
-                                <textarea class="form-control" name="riwayat_penyakit_alergi" rows="2"></textarea>
+
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold">Pemberian Vitamin A</label>
+                                <select class="form-select" name="vitamin_a">
+                                    <option value="Belum Diberikan">Belum Diberikan</option>
+                                    <option value="Kapsul Biru (6-11 Bulan)">Kapsul Biru (6-11 Bulan)</option>
+                                    <option value="Kapsul Merah (1-5 Tahun)">Kapsul Merah (1-5 Tahun)</option>
+                                </select>
                             </div>
-                            <div class="col-6">
-                                <label class="form-label fw-bold">Rawat Inap</label>
-                                <textarea class="form-control" name="riwayat_rawat_inap" rows="2"></textarea>
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold">Lulus ASI Eksklusif (0-6 Bulan)?</label>
+                                <select class="form-select" name="asi_eksklusif">
+                                    <option value="Proses">Masih Proses (< 6 Bulan)</option>
+                                    <option value="Ya">Ya, Lulus ASI Eksklusif</option>
+                                    <option value="Tidak">Tidak Lulus / Susu Formula</option>
+                                </select>
                             </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Riwayat Penyakit / Alergi / Rawat Inap</label>
+                            <textarea class="form-control" name="catatan_penyakit" rows="3" placeholder="Tuliskan jika anak memiliki alergi (misal: alergi susu sapi, telur) atau pernah rawat inap... (Kosongkan jika tidak ada)"></textarea>
                         </div>
                     </div>
                     <div class="modal-footer">
-                        <button type="submit" class="btn btn-ungu w-100">Simpan Riwayat Medis</button>
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
+                        <button type="submit" class="btn btn-ungu fw-bold">Simpan Riwayat</button>
                     </div>
                 </form>
             </div>
         </div>
     </div>
     {% endif %}
+
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
