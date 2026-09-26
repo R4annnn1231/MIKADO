@@ -235,7 +235,7 @@ def pengukuran():
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
     
-    # 1. Endpoint AJAX untuk Grafik KMS (Menarik BB dan TB)
+    # 1. Endpoint AJAX untuk Grafik KMS
     grafik_nik = request.args.get('grafik_nik')
     if grafik_nik:
         if session['role'] == 'ortu':
@@ -247,7 +247,7 @@ def pengukuran():
         conn.close()
         return jsonify(data_grafik)
 
-    # 2. Tangkap Input & Kalkulasi Z-SCORE WHO
+    # 2. Tangkap Input & Kalkulasi Z-SCORE WHO + Deteksi Tren
     if request.method == 'POST' and session['role'] == 'admin':
         nik_anak = request.form['nik_anak']
         tgl_ukur = request.form['tanggal_pengukuran']
@@ -257,12 +257,22 @@ def pengukuran():
         lingkar = request.form.get('lingkar_kepala', 0)
         lila = request.form.get('lila', 0)
         
-        # Ambil Jenis Kelamin untuk standar WHO
         cursor.execute("SELECT jenis_kelamin FROM anak WHERE nik_anak = %s", (nik_anak,))
         anak_info = cursor.fetchone()
         jk = anak_info['jenis_kelamin'] if anak_info else 'L'
         
-        # Simpan ke tabel pengukuran
+        # DETEKSI TREN "T" (Tidak Naik) ATAU "N" (Naik)
+        cursor.execute("SELECT berat_badan FROM pengukuran WHERE nik_anak = %s ORDER BY usia_bulan DESC LIMIT 1", (nik_anak,))
+        data_lama = cursor.fetchone()
+        
+        tren_status = "Data Awal"
+        if data_lama:
+            bb_lama = float(data_lama['berat_badan'])
+            if bb <= bb_lama:
+                tren_status = "T (Tidak Naik/Turun) ⚠️"
+            else:
+                tren_status = "N (Naik) ✅"
+        
         cursor.execute("""
             INSERT INTO pengukuran (nik_anak, tanggal_pengukuran, usia_bulan, berat_badan, tinggi_badan, lingkar_kepala, lila) 
             VALUES (%s, %s, %s, %s, %s, %s, %s)
@@ -270,7 +280,6 @@ def pengukuran():
         
         id_pengukuran = cursor.lastrowid
         
-        # ALGORITMA Z-SCORE SEDERHANA (BB/U & TB/U)
         if jk == 'L':
             bb_normal_bawah = (usia * 0.2) + 3.0  
             bb_normal_atas = (usia * 0.25) + 4.5  
@@ -280,7 +289,6 @@ def pengukuran():
             bb_normal_atas = (usia * 0.23) + 4.2 
             tb_normal_bawah = (usia * 0.75) + 47.0 
             
-        # Penentuan Status BB/U
         if bb < bb_normal_bawah:
             bb_u_status = 'Gizi Kurang'
             if bb < bb_normal_bawah - 1.5: bb_u_status = 'Gizi Buruk'
@@ -289,14 +297,13 @@ def pengukuran():
         else:
             bb_u_status = 'Berat Normal'
             
-        # Penentuan Status TB/U 
         if tb < tb_normal_bawah:
             tb_u_status = 'Stunting (Pendek)'
             if tb < tb_normal_bawah - 3: tb_u_status = 'Sangat Pendek'
         else:
             tb_u_status = 'Tinggi Normal'
             
-        kategori_status = f"{bb_u_status} & {tb_u_status}"
+        kategori_status = f"{bb_u_status} | {tb_u_status} | Tren: {tren_status}"
             
         cursor.execute("""
             INSERT INTO status_gizi (id_pengukuran, bb_u, tb_u, bb_tb, imt_u, kategori_status)
@@ -304,17 +311,26 @@ def pengukuran():
         """, (id_pengukuran, bb_u_status, tb_u_status, "TBA", "Tidak Dipakai", kategori_status))
         
         conn.commit()
-        flash('Data berhasil ditambahkan dengan perhitungan Z-Score standar!', 'success')
+        flash('Data berhasil ditambahkan dengan perhitungan Z-Score standar dan deteksi tren!', 'success')
         return redirect(url_for('pengukuran'))
 
-    # 3. Render Tabel Data
+    # 3. Render Tabel Data (dengan status gizi digabung)
     if session['role'] == 'ortu':
         cursor.execute("""
-            SELECT p.*, a.nama_lengkap FROM pengukuran p 
-            JOIN anak a ON p.nik_anak = a.nik_anak WHERE a.username_ortu = %s ORDER BY p.tanggal_pengukuran DESC
+            SELECT p.*, a.nama_lengkap, s.kategori_status 
+            FROM pengukuran p 
+            JOIN anak a ON p.nik_anak = a.nik_anak 
+            LEFT JOIN status_gizi s ON p.id_pengukuran = s.id_pengukuran
+            WHERE a.username_ortu = %s ORDER BY p.tanggal_pengukuran DESC
         """, (session['username'],))
     else:
-        cursor.execute("SELECT p.*, a.nama_lengkap FROM pengukuran p JOIN anak a ON p.nik_anak = a.nik_anak ORDER BY p.tanggal_pengukuran DESC")
+        cursor.execute("""
+            SELECT p.*, a.nama_lengkap, s.kategori_status 
+            FROM pengukuran p 
+            JOIN anak a ON p.nik_anak = a.nik_anak 
+            LEFT JOIN status_gizi s ON p.id_pengukuran = s.id_pengukuran
+            ORDER BY p.tanggal_pengukuran DESC
+        """)
         
     data_pengukuran = cursor.fetchall()
     cursor.execute("SELECT nik_anak, nama_lengkap FROM anak")
