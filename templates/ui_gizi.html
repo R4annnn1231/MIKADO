@@ -4,11 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Data Status Gizi - MIKAdO</title>
-    <!-- Bootstrap CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
         body {
-            /* Menyamakan background persis seperti dashboard utama */
             background: linear-gradient(rgba(88, 28, 135, 0.85), rgba(126, 34, 206, 0.85)), 
                         url("{{ url_for('static', filename='background.jpg') }}");
             background-size: cover;
@@ -17,46 +15,46 @@
             background-repeat: no-repeat;
             min-height: 100vh;
         }
-        
-        .card {
-            background-color: rgba(255, 255, 255, 0.95); 
-            border-radius: 12px;
-        }
-        
-        .text-ungu {
-            color: #6f42c1 !important;
-        }
-        .bg-ungu {
-            background-color: #6f42c1 !important;
-            color: white !important;
-        }
-        .btn-ungu {
-            background-color: #581c87;
-            color: white;
-            border: none;
-        }
-        .btn-ungu:hover {
-            background-color: #4c1d95;
-            color: white;
-        }
-        
-        /* Modifikasi untuk Accordion Rekomendasi Menu */
-        .accordion-button:not(.collapsed) {
-            color: #581c87;
-            background-color: #f3e8ff;
-            box-shadow: inset 0 -1px 0 rgba(0,0,0,.125);
-        }
-        .accordion-button:focus {
-            box-shadow: 0 0 0 0.25rem rgba(111, 66, 193, 0.25);
-            border-color: #6f42c1;
-        }
+        .card { background-color: rgba(255, 255, 255, 0.95); border-radius: 12px; }
+        .text-ungu { color: #6f42c1 !important; }
+        .bg-ungu { background-color: #6f42c1 !important; color: white !important; }
+        .btn-ungu { background-color: #581c87; color: white; border: none; }
+        .btn-ungu:hover { background-color: #4c1d95; color: white; }
+        .accordion-button:not(.collapsed) { color: #581c87; background-color: #f3e8ff; box-shadow: inset 0 -1px 0 rgba(0,0,0,.125); }
     </style>
 </head>
 <body>
-    <div class="container mt-5">
-        <div class="d-flex justify-content-between align-items-center mb-4">
+    <div class="container mt-5 mb-5">
+        <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
             <h2 class="text-white fw-bold shadow-sm">Data Status Gizi Anak</h2>
             <a href="{{ url_for('index') }}" class="btn btn-ungu shadow-sm">Kembali ke Dashboard</a>
+        </div>
+
+        <!-- SEARCH BAR ADMIN / ORTU -->
+        <div class="card shadow-sm mb-4 border-0">
+            <div class="card-body bg-light rounded">
+                <form method="GET" action="" class="d-flex align-items-center flex-wrap gap-2">
+                    <label class="fw-bold text-secondary" style="min-width: 100px;">
+                        {% if role == 'ortu' %}Pilih Anak:{% else %}Cari Data:{% endif %}
+                    </label>
+                    {% if role == 'ortu' %}
+                        <select name="cari" class="form-select me-3" style="max-width: 400px;" required>
+                            <option value="">-- Pilih Anak Anda --</option>
+                            {% for anak in daftar_anak %}
+                            <option value="{{ anak.nik_anak }}" {% if request.args.get('cari') == anak.nik_anak %}selected{% endif %}>
+                                {{ anak.nama_lengkap }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    {% else %}
+                        <input type="text" name="cari" class="form-control me-3 border-primary" placeholder="Ketik NIK atau No. KMS (6 digit)..." value="{{ request.args.get('cari', '') }}" style="max-width: 400px;" required>
+                    {% endif %}
+                    <button type="submit" class="btn btn-primary px-4 fw-bold">Tampilkan Data</button>
+                    {% if role == 'admin' and request.args.get('cari') %}
+                        <a href="?" class="btn btn-outline-secondary">Reset</a>
+                    {% endif %}
+                </form>
+            </div>
         </div>
 
         <div class="card shadow-lg border-0">
@@ -73,7 +71,7 @@
                                 <th>BB/TB</th>
                                 <th>IMT/U</th>
                                 <th>Kategori Status</th>
-                                <th>Rekomendasi Menu</th> <!-- Kolom Baru Ditambahkan -->
+                                <th>Rekomendasi Menu</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -89,7 +87,6 @@
                                     <td class="text-center">{{ gizi.imt_u }}</td>
                                     <td class="fw-bold text-center text-ungu">{{ gizi.kategori_status }}</td>
                                     <td class="text-center">
-                                        <!-- Tombol Pemicu Modal -->
                                         <button type="button" class="btn btn-sm btn-ungu rounded-pill px-3 shadow-sm" data-bs-toggle="modal" data-bs-target="#modalRekomendasi{{ loop.index }}">
                                             🍲 Lihat Menu
                                         </button>
@@ -98,7 +95,7 @@
                                 {% endfor %}
                             {% else %}
                                 <tr>
-                                    <td colspan="9" class="text-center text-muted py-4">Belum ada data status gizi yang tercatat.</td>
+                                    <td colspan="9" class="text-center text-muted py-4">{% if role == 'admin' %}Silakan cari data anak melalui form di atas.{% else %}Belum ada data status gizi yang tercatat.{% endif %}</td>
                                 </tr>
                             {% endif %}
                         </tbody>
@@ -108,9 +105,6 @@
         </div>
     </div>
 
-    <!-- ========================================== -->
-    <!-- BAGIAN MODAL REKOMENDASI GIZI              -->
-    <!-- ========================================== -->
     {% if data_gizi %}
         {% for gizi in data_gizi %}
         <div class="modal fade" id="modalRekomendasi{{ loop.index }}" tabindex="-1" aria-labelledby="modalLabel{{ loop.index }}" aria-hidden="true">
@@ -123,7 +117,6 @@
                         <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
                     </div>
                     <div class="modal-body p-4">
-                        
                         <div class="alert alert-info mb-4 border-0 shadow-sm" role="alert">
                             <strong>Status Gizi Saat Ini:</strong> {{ gizi.kategori_status }}
                         </div>
@@ -131,43 +124,36 @@
                         {% if gizi.rekomendasi and gizi.rekomendasi|length > 0 %}
                             <h6 class="fw-bold text-ungu mb-3">Daftar Pilihan Menu:</h6>
                             <div class="accordion shadow-sm" id="accordionResep{{ loop.index }}">
-                                
                                 {% for resep in gizi.rekomendasi %}
                                 <div class="accordion-item border-0 border-bottom">
                                     <h2 class="accordion-header" id="heading{{ loop.index }}_{{ loop.index0 }}">
-                                        <button class="accordion-button fw-bold {% if not loop.first %}collapsed{% endif %}" type="button" data-bs-toggle="collapse" data-bs-target="#collapse{{ loop.index }}_{{ loop.index0 }}" aria-expanded="{% if loop.first %}true{% else %}false{% endif %}" aria-controls="collapse{{ loop.index }}_{{ loop.index0 }}">
+                                        <button class="accordion-button fw-bold {% if not loop.first %}collapsed{% endif %}" type="button" data-bs-toggle="collapse" data-bs-target="#collapse{{ loop.index }}_{{ loop.index0 }}">
                                             🍽️ {{ resep.nama_menu }}
                                         </button>
                                     </h2>
-                                    <div id="collapse{{ loop.index }}_{{ loop.index0 }}" class="accordion-collapse collapse {% if loop.first %}show{% endif %}" aria-labelledby="heading{{ loop.index }}_{{ loop.index0 }}" data-bs-parent="#accordionResep{{ loop.index }}">
+                                    <div id="collapse{{ loop.index }}_{{ loop.index0 }}" class="accordion-collapse collapse {% if loop.first %}show{% endif %}" data-bs-parent="#accordionResep{{ loop.index }}">
                                         <div class="accordion-body bg-light">
                                             <div class="row">
                                                 <div class="col-md-5 mb-3 mb-md-0">
                                                     <h6 class="fw-bold text-ungu border-bottom pb-2">Bahan-bahan:</h6>
-                                                    <p class="mb-0" style="white-space: pre-line; font-size: 0.95rem;">
-                                                        {{ resep.bahan }}
-                                                    </p>
+                                                    <p class="mb-0" style="white-space: pre-line; font-size: 0.95rem;">{{ resep.bahan }}</p>
                                                 </div>
                                                 <div class="col-md-7">
                                                     <h6 class="fw-bold text-ungu border-bottom pb-2">Cara Membuat:</h6>
-                                                    <p class="mb-0" style="white-space: pre-line; font-size: 0.95rem;">
-                                                        {{ resep.cara_membuat }}
-                                                    </p>
+                                                    <p class="mb-0" style="white-space: pre-line; font-size: 0.95rem;">{{ resep.cara_membuat }}</p>
                                                 </div>
                                             </div>
                                         </div>
                                     </div>
                                 </div>
                                 {% endfor %}
-                                
                             </div>
                         {% else %}
                             <div class="text-center py-5">
                                 <h5 class="text-muted">Maaf, menu belum tersedia.</h5>
-                                <p class="text-muted mb-0">Belum ada rekomendasi resep yang cocok untuk rentang usia dan status gizi ini di dalam database.</p>
+                                <p class="text-muted mb-0">Belum ada rekomendasi resep yang cocok untuk rentang usia dan status gizi ini.</p>
                             </div>
                         {% endif %}
-
                     </div>
                     <div class="modal-footer border-0 bg-light">
                         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Tutup</button>
@@ -178,7 +164,6 @@
         {% endfor %}
     {% endif %}
 
-    <!-- Bootstrap JS Bundle (Wajib untuk Modal & Accordion) -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
