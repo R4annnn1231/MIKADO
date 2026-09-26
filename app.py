@@ -27,7 +27,7 @@ def get_db_connection():
 def login():
     if 'role' in session:
         return redirect(url_for('index'))
-    
+        
     if request.method == 'POST':
         username = request.form['username']
         password = request.form['password']
@@ -369,6 +369,31 @@ def gizi():
         cursor.execute(query)
         
     data_gizi = cursor.fetchall()
+
+    # --- MODUL AI REKOMENDASI GIZI ---
+    cursor.execute("SELECT * FROM rekomendasi_gizi")
+    semua_resep = cursor.fetchall()
+
+    for item in data_gizi:
+        bb_u = item.get('bb_u') or ''
+        usia = float(item.get('usia_bulan') or 0)
+
+        # Penyesuaian Kategori Status ke Tabel rekomendasi_gizi
+        if 'Kurang' in bb_u or 'Buruk' in bb_u:
+            target_status = 'Gizi Kurang'
+        elif 'Lebih' in bb_u or 'Obesitas' in bb_u:
+            target_status = 'Risiko Gizi Lebih'
+        else:
+            target_status = 'Normal'
+
+        # Pencocokan Rekomendasi berdasarkan Status & Rentang Usia
+        rekomendasi_terpilih = []
+        for resep in semua_resep:
+            if resep['kategori_status'] == target_status and resep['usia_min_bulan'] <= usia <= resep['usia_max_bulan']:
+                rekomendasi_terpilih.append(resep)
+
+        item['rekomendasi'] = rekomendasi_terpilih
+
     conn.close()
     return render_template('ui_gizi.html', data_gizi=data_gizi)
 
