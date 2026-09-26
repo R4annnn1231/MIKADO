@@ -398,6 +398,9 @@ def gizi():
     return render_template('ui_gizi.html', data_gizi=data_gizi)
 
 
+# ==========================================
+# RUTE RIWAYAT (TELAH DIPERBAIKI)
+# ==========================================
 @app.route('/riwayat', methods=['GET', 'POST'])
 def riwayat():
     if 'role' not in session:
@@ -406,41 +409,63 @@ def riwayat():
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
     
+    # 1. MENANGKAP DATA FORM (POST)
     if request.method == 'POST' and session['role'] == 'admin':
-        nik = request.form['nik_anak']
-        imunisasi = request.form['riwayat_imunisasi']
-        asi = request.form['asi_eksklusif']
-        vit_a = request.form['vitamin_a']
-        mpasi = request.form['riwayat_mpasi']
-        alergi = request.form['riwayat_penyakit_alergi']
-        rawat = request.form['riwayat_rawat_inap']
+        nik = request.form.get('nik_anak')
+        asi = request.form.get('asi_eksklusif', '-')
+        vit_a = request.form.get('vitamin_a', '-')
+        alergi = request.form.get('catatan_penyakit', '-')
         
-        cursor.execute("""
-            INSERT INTO riwayat_kesehatan (nik_anak, riwayat_imunisasi, asi_eksklusif, vitamin_a, riwayat_mpasi, riwayat_penyakit_alergi, riwayat_rawat_inap) 
-            VALUES (%s, %s, %s, %s, %s, %s, %s)
-        """, (nik, imunisasi, asi, vit_a, mpasi, alergi, rawat))
-        conn.commit()
-        flash('Data Riwayat Kesehatan berhasil ditambahkan!', 'success')
+        # Tangkap Checkbox sebagai List lalu gabungkan dengan koma
+        list_imunisasi = request.form.getlist('imunisasi')
+        imunisasi = ", ".join(list_imunisasi) if list_imunisasi else "Belum ada"
+        
+        # Data default untuk kolom tabel DB lama yang tidak ada di HTML baru
+        mpasi = '-'
+        rawat = '-'
+        
+        try:
+            cursor.execute("""
+                INSERT INTO riwayat_kesehatan (nik_anak, riwayat_imunisasi, asi_eksklusif, vitamin_a, riwayat_mpasi, riwayat_penyakit_alergi, riwayat_rawat_inap) 
+                VALUES (%s, %s, %s, %s, %s, %s, %s)
+            """, (nik, imunisasi, asi, vit_a, mpasi, alergi, rawat))
+            conn.commit()
+            flash('Data Riwayat Kesehatan berhasil ditambahkan!', 'success')
+        except Exception as e:
+            conn.rollback()
+            flash(f'Gagal menambahkan data: {str(e)}', 'danger')
+            
         return redirect(url_for('riwayat'))
     
+    # 2. MENAMPILKAN DATA TABEL (GET)
     if session['role'] == 'ortu':
         cursor.execute("""
-            SELECT r.*, a.nama_lengkap 
+            SELECT r.*, 
+                   r.riwayat_imunisasi AS imunisasi, 
+                   r.riwayat_penyakit_alergi AS catatan_penyakit,
+                   CURRENT_DATE() AS tanggal_catat,
+                   a.nama_lengkap 
             FROM riwayat_kesehatan r 
             JOIN anak a ON r.nik_anak = a.nik_anak
             WHERE a.username_ortu = %s
         """, (session['username'],))
     else:
         cursor.execute("""
-            SELECT r.*, a.nama_lengkap 
+            SELECT r.*, 
+                   r.riwayat_imunisasi AS imunisasi, 
+                   r.riwayat_penyakit_alergi AS catatan_penyakit,
+                   CURRENT_DATE() AS tanggal_catat,
+                   a.nama_lengkap 
             FROM riwayat_kesehatan r 
             JOIN anak a ON r.nik_anak = a.nik_anak
         """)
         
     data_riwayat = cursor.fetchall()
+    
     cursor.execute("SELECT nik_anak, nama_lengkap FROM anak")
     daftar_anak = cursor.fetchall()
     conn.close()
+    
     return render_template('ui_riwayat.html', data_riwayat=data_riwayat, daftar_anak=daftar_anak, role=session['role'])
 
 
