@@ -33,13 +33,47 @@
             </span>
         </div>
 
-        <div class="row g-3 mb-5 justify-content-center">
-            <!-- SELURUH TAUTAN MENU SUDAH DIPERBAIKI DI SINI -->
+        <div class="row g-3 mb-4 justify-content-center">
+            <!-- SELURUH TAUTAN MENU -->
             <div class="col-md-2"><a href="{{ url_for('identitas') }}" class="menu-tile"><div>👤</div>Identitas</a></div>
             <div class="col-md-2"><a href="{{ url_for('pengukuran') }}" class="menu-tile"><div>📏</div>Pengukuran</a></div>
             <div class="col-md-2"><a href="{{ url_for('gizi') }}" class="menu-tile"><div>🍎</div>Status Gizi</a></div>
             <div class="col-md-2"><a href="{{ url_for('riwayat') }}" class="menu-tile"><div>📋</div>Riwayat</a></div>
             <div class="col-md-2"><a href="{{ url_for('perkembangan') }}" class="menu-tile"><div>📈</div>Perkembangan</a></div>
+        </div>
+
+        <!-- STATISTIK KARTU (Sesuai dengan gaya Glassmorphism) -->
+        <div class="row g-3 mb-4">
+            <div class="col-md-3">
+                <div class="card glass-card text-center p-3 h-100">
+                    <h6 class="text-purple fw-bold mb-2">Total Anak</h6>
+                    <h2 class="display-6 fw-bold mb-0 text-dark">{{ statistik.total_anak }}</h2>
+                    <small class="text-muted mt-2">Terdaftar di Sistem</small>
+                </div>
+            </div>
+            {% if role == 'admin' %}
+            <div class="col-md-3">
+                <div class="card glass-card text-center p-3 h-100" style="border-left: 5px solid #dc3545;">
+                    <h6 class="text-danger fw-bold mb-2">Stunting / Pendek</h6>
+                    <h2 class="display-6 fw-bold mb-0 text-danger">{{ statistik.stunting }}</h2>
+                    <small class="text-muted mt-2">Perlu Penanganan</small>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card glass-card text-center p-3 h-100" style="border-left: 5px solid #fd7e14;">
+                    <h6 class="text-warning fw-bold mb-2" style="color: #fd7e14 !important;">Gizi Kurang</h6>
+                    <h2 class="display-6 fw-bold mb-0" style="color: #fd7e14 !important;">{{ statistik.gizi_kurang_buruk }}</h2>
+                    <small class="text-muted mt-2">Cek Rekomendasi AI</small>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card glass-card text-center p-3 h-100" style="border-left: 5px solid #198754;">
+                    <h6 class="text-success fw-bold mb-2">Integrasi API</h6>
+                    <h2 class="display-6 fw-bold mb-0 text-success">Aktif</h2>
+                    <small class="text-muted mt-2">Siap Kirim ke Dinkes</small>
+                </div>
+            </div>
+            {% endif %}
         </div>
 
         <div class="card glass-card mb-5">
