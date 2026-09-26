@@ -14,10 +14,40 @@
 </head>
 <body>
     <div class="container mt-5 mb-5">
-        <div class="d-flex justify-content-between align-items-center mb-4">
+        <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
             <h2 class="text-white fw-bold">Data Identitas Anak</h2>
             <a href="{{ url_for('index') }}" class="btn btn-ungu">Kembali ke Dashboard</a>
         </div>
+
+        <!-- SEARCH BAR UNTUK ADMIN / DROPDOWN ORTU -->
+        <div class="card shadow-sm mb-4 border-0">
+            <div class="card-body bg-light rounded">
+                <form method="GET" action="" class="d-flex align-items-center flex-wrap gap-2">
+                    <label class="fw-bold text-secondary" style="min-width: 100px;">
+                        {% if role == 'ortu' %}Pilih Anak:{% else %}Cari Data:{% endif %}
+                    </label>
+                    
+                    {% if role == 'ortu' %}
+                        <select name="cari" class="form-select me-3" style="max-width: 400px;" required>
+                            <option value="">-- Pilih Anak Anda --</option>
+                            {% for anak in daftar_anak %}
+                            <option value="{{ anak.nik_anak }}" {% if request.args.get('cari') == anak.nik_anak %}selected{% endif %}>
+                                {{ anak.nama_lengkap }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    {% else %}
+                        <input type="text" name="cari" class="form-control me-3 border-primary" placeholder="Ketik NIK atau No. KMS (6 digit)..." value="{{ request.args.get('cari', '') }}" style="max-width: 400px;" required>
+                    {% endif %}
+                    
+                    <button type="submit" class="btn btn-primary px-4 fw-bold">Tampilkan Data</button>
+                    {% if role == 'admin' and request.args.get('cari') %}
+                        <a href="?" class="btn btn-outline-secondary">Reset</a>
+                    {% endif %}
+                </form>
+            </div>
+        </div>
+
         <div class="card shadow-lg border-0">
             <div class="card-body p-4">
                 <div class="table-responsive">
@@ -25,6 +55,7 @@
                         <thead class="bg-ungu text-center">
                             <tr>
                                 <th>No</th>
+                                <th>No. KMS</th>
                                 <th>NIK</th>
                                 <th>Nama Lengkap</th>
                                 <th>Tgl Lahir</th>
@@ -39,6 +70,7 @@
                                 {% for d in data_anak %}
                                 <tr>
                                     <td class="text-center">{{ loop.index }}</td>
+                                    <td class="text-center fw-bold text-success">{{ d.no_register_kms }}</td>
                                     <td>{{ d.nik_anak }}</td>
                                     <td class="fw-medium">{{ d.nama_lengkap }}</td>
                                     <td class="text-center">{{ d.tanggal_lahir }}</td>
@@ -49,7 +81,7 @@
                                 </tr>
                                 {% endfor %}
                             {% else %}
-                                <tr><td colspan="8" class="text-center text-muted py-4">Belum ada data identitas.</td></tr>
+                                <tr><td colspan="9" class="text-center text-muted py-4">{% if role == 'admin' %}Silakan masukkan NIK atau No. KMS di atas untuk mencari data.{% else %}Belum ada data identitas anak.{% endif %}</td></tr>
                             {% endif %}
                         </tbody>
                     </table>
