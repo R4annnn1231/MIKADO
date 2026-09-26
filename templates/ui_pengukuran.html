@@ -247,7 +247,12 @@
                     responsive: true, maintainAspectRatio: false,
                     interaction: { mode: 'index', intersect: false },
                     plugins: {
-                        legend: { labels: { font: { weight: 'bold' } } }
+                        legend: { labels: { font: { weight: 'bold' } } },
+                        tooltip: {
+                            filter: function(tooltipItem) {
+                                return tooltipItem.datasetIndex === 0 || tooltipItem.datasetIndex === 1;
+                            }
+                        }
                     },
                     scales: { 
                         x: { 
