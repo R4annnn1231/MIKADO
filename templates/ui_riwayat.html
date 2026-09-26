@@ -132,8 +132,8 @@
                     <h5 class="modal-title fw-bold">Tambah Riwayat Kesehatan Anak</h5>
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
-                <!-- Pastikan Action form sesuai dengan rute di app.py Anda -->
-                <form method="POST" action="{{ url_for('riwayat_kesehatan') }}">
+                <!-- SUDAH DIPERBAIKI DI SINI: action mengarah ke 'riwayat' -->
+                <form method="POST" action="{{ url_for('riwayat') }}">
                     <div class="modal-body">
                         <div class="row mb-3">
                             <div class="col-md-6">
