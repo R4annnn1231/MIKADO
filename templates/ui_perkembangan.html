@@ -30,17 +30,16 @@
           {% endif %}
         {% endwith %}
 
-        <!-- MESIN PENCARI (SEARCH ENGINE) ANAK -->
+        <!-- MESIN PENCARI (SEARCH ENGINE) NIK / No. KMS ATAU DROPDOWN ORTU -->
         <div class="card shadow-sm mb-4 border-0">
             <div class="card-body">
-                <form method="GET" action="/perkembangan" class="d-flex align-items-center">
-                    <label class="fw-bold me-3 text-secondary">
+                <form method="GET" action="/perkembangan" class="d-flex align-items-center flex-wrap gap-2">
+                    <label class="fw-bold text-secondary">
                         {% if role == 'ortu' %}Pilih Anak Anda:{% else %}Cari Data Anak:{% endif %}
                     </label>
                     
                     {% if role == 'ortu' %}
-                        <!-- Untuk Ortu: Tetap Dropdown karena data sedikit -->
-                        <select name="cari_anak" class="form-select me-3 border-primary" required style="max-width: 400px;">
+                        <select name="cari_anak" class="form-select border-primary" required style="max-width: 400px;">
                             <option value="">-- Pilih Data Anak --</option>
                             {% for anak in daftar_anak %}
                             <option value="{{ anak.nik_anak }}" {% if nik_terpilih == anak.nik_anak %}selected{% endif %}>
@@ -49,21 +48,19 @@
                             {% endfor %}
                         </select>
                     {% else %}
-                        <!-- Untuk Admin: Engine Search NIK / KMS untuk hindari Lag Server -->
-                        <input type="text" name="cari_anak" class="form-control me-3 border-primary" placeholder="Masukkan NIK atau No. KMS..." required style="max-width: 400px;" value="{{ request.args.get('cari_anak', '') }}">
+                        <input type="text" name="cari_anak" class="form-control border-primary" placeholder="Masukkan NIK atau No. KMS (6 digit)..." required style="max-width: 400px;" value="{{ request.args.get('cari_anak', '') }}">
                     {% endif %}
                     
                     <button type="submit" class="btn btn-primary px-4 fw-bold">Tampilkan Ceklis</button>
                     
                     {% if role == 'admin' and nik_terpilih %}
-                        <a href="/perkembangan" class="btn btn-outline-secondary ms-2">Reset Pencarian</a>
+                        <a href="/perkembangan" class="btn btn-outline-secondary">Reset Pencarian</a>
                     {% endif %}
                 </form>
             </div>
         </div>
 
         {% if nik_terpilih and anak_terpilih %}
-        <!-- INFO ANAK YANG SEDANG DIPROSES -->
         <div class="alert alert-info shadow-sm mb-4 border-info border-start border-5">
             Berhasil menemukan data perkembangan anak: <br>
             <strong>👶 Nama: {{ anak_terpilih.nama_lengkap }}</strong> <br>
@@ -77,7 +74,6 @@
             </div>
             <div class="card-body">
                 <form method="POST" action="/perkembangan">
-                    <!-- HIDDEN INPUT untuk menjaga NIK asli saat di-submit -->
                     <input type="hidden" name="nik_anak" value="{{ nik_terpilih }}">
                     
                     <div class="accordion" id="accordionPerkembangan">
