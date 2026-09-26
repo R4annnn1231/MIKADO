@@ -24,7 +24,6 @@
         .btn-ungu:hover { background-color: #4c1d95; color: white; }
         .badge-imunisasi { background-color: #17a2b8; font-weight: normal; margin-right: 3px; margin-bottom: 3px; display: inline-block;}
 
-        /* CSS Khusus Mode Cetak Laporan (PDF / Print) */
         @media print {
             body { background: white !important; padding: 0 !important; }
             .btn, .d-print-none, form, .modal { display: none !important; }
@@ -36,7 +35,6 @@
 </head>
 <body>
     <div class="container py-5">
-        <!-- HEADER & TOMBOL AKSI -->
         <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
             <div>
                 <h2 class="text-white fw-bold mb-0">Riwayat Kesehatan Anak</h2>
@@ -53,7 +51,6 @@
             </div>
         </div>
 
-        <!-- FLASH MESSAGES -->
         {% with messages = get_flashed_messages(with_categories=true) %}
           {% if messages %}
             {% for category, message in messages %}
@@ -65,7 +62,33 @@
           {% endif %}
         {% endwith %}
 
-        <!-- AREA TABEL RIWAYAT KESEHATAN -->
+        <!-- SEARCH BAR ADMIN / ORTU -->
+        <div class="card border-0 mb-4 d-print-none">
+            <div class="card-body bg-light rounded">
+                <form method="GET" action="" class="d-flex align-items-center flex-wrap gap-2">
+                    <label class="fw-bold text-secondary" style="min-width: 100px;">
+                        {% if role == 'ortu' %}Pilih Anak:{% else %}Cari Data:{% endif %}
+                    </label>
+                    {% if role == 'ortu' %}
+                        <select name="cari" class="form-select me-3" style="max-width: 400px;" required>
+                            <option value="">-- Pilih Anak Anda --</option>
+                            {% for anak in daftar_anak %}
+                            <option value="{{ anak.nik_anak }}" {% if request.args.get('cari') == anak.nik_anak %}selected{% endif %}>
+                                {{ anak.nama_lengkap }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    {% else %}
+                        <input type="text" name="cari" class="form-control me-3 border-primary" placeholder="Ketik NIK atau No. KMS (6 digit)..." value="{{ request.args.get('cari', '') }}" style="max-width: 400px;" required>
+                    {% endif %}
+                    <button type="submit" class="btn btn-primary px-4 fw-bold">Tampilkan Data</button>
+                    {% if role == 'admin' and request.args.get('cari') %}
+                        <a href="?" class="btn btn-outline-secondary">Reset</a>
+                    {% endif %}
+                </form>
+            </div>
+        </div>
+
         <div class="card border-0">
             <div class="card-body p-4">
                 <div class="table-responsive">
@@ -102,10 +125,8 @@
                                     <td class="text-center fw-bold text-primary">{{ d.vitamin_a }}</td>
                                     <td class="text-center fw-bold text-success">{{ d.asi_eksklusif }}</td>
                                     <td class="small text-danger fw-medium">{{ d.catatan_penyakit if d.catatan_penyakit else '-' }}</td>
-                                    
                                     {% if role == 'admin' %}
                                     <td class="text-center d-print-none">
-                                        <!-- Anda bisa menambahkan rute delete_riwayat di app.py nanti -->
                                         <a href="#" class="btn btn-sm btn-outline-danger" onclick="return confirm('Hapus data ini?')">🗑️ Hapus</a>
                                     </td>
                                     {% endif %}
@@ -113,7 +134,7 @@
                                 {% endfor %}
                             {% else %}
                                 <tr>
-                                    <td colspan="8" class="text-center text-muted py-4">Belum ada riwayat kesehatan yang dicatat.</td>
+                                    <td colspan="8" class="text-center text-muted py-4">{% if role == 'admin' %}Silakan cari data anak melalui form di atas.{% else %}Belum ada riwayat kesehatan yang tercatat.{% endif %}</td>
                                 </tr>
                             {% endif %}
                         </tbody>
@@ -132,18 +153,13 @@
                     <h5 class="modal-title fw-bold">Tambah Riwayat Kesehatan Anak</h5>
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
-                <!-- SUDAH DIPERBAIKI DI SINI: action mengarah ke 'riwayat' -->
                 <form method="POST" action="{{ url_for('riwayat') }}">
                     <div class="modal-body">
                         <div class="row mb-3">
                             <div class="col-md-6">
-                                <label class="form-label fw-bold">Pilih Anak</label>
-                                <select class="form-select" name="nik_anak" required>
-                                    <option value="">-- Silakan Pilih Anak --</option>
-                                    {% for a in daftar_anak %}
-                                    <option value="{{ a.nik_anak }}">{{ a.nama_lengkap }}</option>
-                                    {% endfor %}
-                                </select>
+                                <label class="form-label fw-bold">Identitas Anak (NIK atau No. KMS 6 Digit)</label>
+                                <input type="text" class="form-control border-primary" name="nik_anak" placeholder="Ketik NIK atau No. KMS..." required autocomplete="off">
+                                <small class="text-muted">Sistem otomatis mengenali anak berdasarkan NIK / No. KMS.</small>
                             </div>
                             <div class="col-md-6">
                                 <label class="form-label fw-bold">Tanggal Pencatatan</label>
@@ -209,7 +225,7 @@
                             <div class="col-md-6">
                                 <label class="form-label fw-bold">Lulus ASI Eksklusif (0-6 Bulan)?</label>
                                 <select class="form-select" name="asi_eksklusif">
-                                    <option value="Proses">Masih Proses (< 6 Bulan)</option>
+                                    <option value="Proses">Masih Proses (&lt; 6 Bulan)</option>
                                     <option value="Ya">Ya, Lulus ASI Eksklusif</option>
                                     <option value="Tidak">Tidak Lulus / Susu Formula</option>
                                 </select>
@@ -218,7 +234,7 @@
 
                         <div class="mb-3">
                             <label class="form-label fw-bold">Riwayat Penyakit / Alergi / Rawat Inap</label>
-                            <textarea class="form-control" name="catatan_penyakit" rows="3" placeholder="Tuliskan jika anak memiliki alergi (misal: alergi susu sapi, telur) atau pernah rawat inap... (Kosongkan jika tidak ada)"></textarea>
+                            <textarea class="form-control" name="catatan_penyakit" rows="3" placeholder="Tuliskan jika anak memiliki alergi atau pernah rawat inap..."></textarea>
                         </div>
                     </div>
                     <div class="modal-footer">
