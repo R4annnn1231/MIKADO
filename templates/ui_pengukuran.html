@@ -15,6 +15,16 @@
         .bg-ungu { background-color: #6f42c1 !important; color: white !important; }
         .btn-ungu { background-color: #581c87; color: white; border: none; font-weight: 500; }
         .btn-ungu:hover { background-color: #4c1d95; color: white; }
+
+        /* CSS Khusus Mode Cetak Laporan (PDF) */
+        @media print {
+            body { background: white !important; padding: 0 !important; }
+            .btn, .d-print-none, form, .modal { display: none !important; }
+            .card { border: none !important; box-shadow: none !important; }
+            .bg-ungu { background-color: #6f42c1 !important; color: white !important; -webkit-print-color-adjust: exact; }
+            table { font-size: 12px; }
+            #grafikKKA { display: block !important; }
+        }
     </style>
 </head>
 <body>
@@ -22,19 +32,21 @@
         <div class="d-flex justify-content-between align-items-center mb-4">
             <h2 class="text-white fw-bold">Data Pengukuran & Grafik KMS</h2>
             <div>
+                <!-- Fitur Cetak PDF & Tombol Tambah yang disembunyikan saat dicetak -->
                 {% if role == 'admin' %}
-                <button type="button" class="btn btn-light text-ungu fw-bold me-2" data-bs-toggle="modal" data-bs-target="#modalTambah">
+                <button onclick="window.print()" class="btn btn-warning fw-bold text-dark me-2 d-print-none">🖨️ Cetak PDF</button>
+                <button type="button" class="btn btn-light text-ungu fw-bold me-2 d-print-none" data-bs-toggle="modal" data-bs-target="#modalTambah">
                     + Tambah Pengukuran
                 </button>
                 {% endif %}
-                <a href="{{ url_for('index') }}" class="btn btn-ungu">Kembali</a>
+                <a href="{{ url_for('index') }}" class="btn btn-ungu d-print-none">Kembali</a>
             </div>
         </div>
 
         {% with messages = get_flashed_messages(with_categories=true) %}
           {% if messages %}
             {% for category, message in messages %}
-              <div class="alert alert-{{ category }} text-center fw-bold">{{ message }}</div>
+              <div class="alert alert-{{ category }} text-center fw-bold d-print-none">{{ message }}</div>
             {% endfor %}
           {% endif %}
         {% endwith %}
@@ -45,9 +57,10 @@
                 <h5 class="mb-0 fw-bold">Grafik Pertumbuhan Anak (KMS Digital) <span id="namaAnakGrafik"></span></h5>
             </div>
             <div class="card-body p-4">
-                <div id="infoPilih" class="text-center text-muted py-5">
+                <div id="infoPilih" class="text-center text-muted py-5 d-print-none">
                     <i>Silakan klik tombol "Lihat Grafik" pada tabel di bawah untuk memantau KMS anak.</i>
                 </div>
+                <!-- Tinggi disesuaikan untuk PDF -->
                 <canvas id="grafikKKA" style="width: 100%; max-height: 400px; display: none;"></canvas>
             </div>
         </div>
@@ -65,7 +78,8 @@
                                 <th>Usia (Bulan)</th>
                                 <th>BB (kg)</th>
                                 <th>TB (cm)</th>
-                                <th>Aksi</th>
+                                <th>Status Gizi & Tren</th>
+                                <th class="d-print-none">Aksi</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -78,13 +92,20 @@
                                     <td class="text-center">{{ d.usia_bulan }}</td>
                                     <td class="text-center">{{ d.berat_badan }}</td>
                                     <td class="text-center">{{ d.tinggi_badan }}</td>
-                                    <td class="text-center">
+                                    <td class="text-center fw-bold">
+                                        {% if d.kategori_status %}
+                                            {{ d.kategori_status }}
+                                        {% else %}
+                                            Belum Dihitung
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-center d-print-none">
                                         <button class="btn btn-sm btn-ungu px-3" onclick="tampilkanGrafik('{{ d.nik_anak }}', '{{ d.nama_lengkap }}')">📈 Lihat Grafik</button>
                                     </td>
                                 </tr>
                                 {% endfor %}
                             {% else %}
-                                <tr><td colspan="7" class="text-center text-muted py-4">Belum ada data pengukuran.</td></tr>
+                                <tr><td colspan="8" class="text-center text-muted py-4">Belum ada data pengukuran.</td></tr>
                             {% endif %}
                         </tbody>
                     </table>
@@ -95,7 +116,7 @@
 
     <!-- MODAL TAMBAH DATA (Hanya untuk Admin) -->
     {% if role == 'admin' %}
-    <div class="modal fade" id="modalTambah" tabindex="-1" aria-hidden="true">
+    <div class="modal fade d-print-none" id="modalTambah" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog">
             <div class="modal-content">
                 <div class="modal-header bg-ungu text-white">
@@ -152,17 +173,12 @@
     </div>
     {% endif %}
 
-    <!-- SCRIPT BOOTSTRAP BUNDLE (Penting untuk pop-up modal) -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 
-    <!-- SCRIPT AJAX & CHART.JS -->
+    <!-- SCRIPT AJAX & CHART.JS (Versi Dual-Axis BB & TB) -->
     <script>
         let kmsChart = null;
-        const standarUsia = [0, 6, 12, 18, 24, 30, 36, 42, 48, 54, 60];
-        const atasHijau =   [4.0, 9.0, 11.0, 12.5, 14.0, 15.0, 16.0, 17.0, 18.0, 19.0, 20.0];
-        const bawahHijau =  [2.5, 6.5, 8.0,  9.5,  10.5, 11.5, 12.5, 13.5, 14.5, 15.0, 16.0];
-        const garisMerah =  [2.0, 5.5, 7.0,  8.0,  9.0,  10.0, 11.0, 11.5, 12.0, 12.5, 13.0];
-
+        
         function tampilkanGrafik(nik, nama) {
             document.getElementById('namaAnakGrafik').innerText = "- " + nama;
             document.getElementById('infoPilih').style.display = 'none';
@@ -172,27 +188,45 @@
             fetch('/pengukuran?grafik_nik=' + nik)
                 .then(res => res.json())
                 .then(data => {
-                    let dataAnak = data.map(d => ({ x: parseInt(d.usia_bulan), y: parseFloat(d.berat_badan) }));
-                    renderKMS(dataAnak, nama);
+                    // Petakan data BB dan TB dari database
+                    let dataBB = data.map(d => ({ x: parseInt(d.usia_bulan), y: parseFloat(d.berat_badan) }));
+                    let dataTB = data.map(d => ({ x: parseInt(d.usia_bulan), y: parseFloat(d.tinggi_badan) }));
+                    renderKMS(dataBB, dataTB, nama);
                 });
         }
 
-        function renderKMS(dataAnakAktual, nama) {
+        function renderKMS(dataBB, dataTB, nama) {
             let ctx = document.getElementById('grafikKKA').getContext('2d');
             if(kmsChart) kmsChart.destroy(); 
             
             kmsChart = new Chart(ctx, {
                 type: 'line',
                 data: {
-                    labels: standarUsia,
                     datasets: [
-                        { label: 'BB Aktual ' + nama, data: dataAnakAktual, borderColor: '#311b92', backgroundColor: '#311b92', borderWidth: 4, pointRadius: 6, tension: 0.3, type: 'line' },
-                        { label: 'Batas Atas', data: atasHijau, borderColor: 'transparent', backgroundColor: 'rgba(255, 235, 59, 0.5)', fill: '+1', pointRadius: 0 },
-                        { label: 'Pita Hijau (Normal)', data: bawahHijau, borderColor: 'transparent', backgroundColor: 'rgba(76, 175, 80, 0.5)', fill: '+1', pointRadius: 0 },
-                        { label: 'Pita Kuning (Kurang)', data: garisMerah, borderColor: 'red', borderWidth: 2, backgroundColor: 'rgba(255, 235, 59, 0.5)', fill: 'origin', pointRadius: 0 }
+                        { 
+                            label: 'Berat Badan (kg)', 
+                            data: dataBB, 
+                            borderColor: '#311b92', backgroundColor: '#311b92', 
+                            borderWidth: 3, pointRadius: 5, tension: 0.3, 
+                            yAxisID: 'y' 
+                        },
+                        { 
+                            label: 'Tinggi Badan (cm)', 
+                            data: dataTB, 
+                            borderColor: '#e91e63', backgroundColor: '#e91e63', 
+                            borderWidth: 3, pointRadius: 5, tension: 0.3, 
+                            yAxisID: 'y1' 
+                        }
                     ]
                 },
-                options: { responsive: true, maintainAspectRatio: false, scales: { x: { type: 'linear', min: 0, max: 60 }, y: { min: 0, max: 25 } } }
+                options: { 
+                    responsive: true, maintainAspectRatio: false,
+                    scales: { 
+                        x: { type: 'linear', title: { display: true, text: 'Usia (Bulan)', font: {weight: 'bold'} }, min: 0, max: 60 }, 
+                        y: { type: 'linear', position: 'left', title: { display: true, text: 'Berat Badan (kg)', color: '#311b92' }, min: 0, max: 25 },
+                        y1: { type: 'linear', position: 'right', title: { display: true, text: 'Tinggi Badan (cm)', color: '#e91e63' }, min: 40, max: 120, grid: { drawOnChartArea: false } }
+                    } 
+                }
             });
         }
     </script>
