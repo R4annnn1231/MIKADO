@@ -21,6 +21,25 @@ def get_db_connection():
     )
 
 # ==========================================
+# HELPER: AUTO-GENERATE NO KMS 6 DIGIT BERURUTAN
+# ==========================================
+def generate_no_kms(cursor):
+    cursor.execute("SELECT no_register_kms FROM anak ORDER BY no_register_kms DESC LIMIT 1")
+    last_kms = cursor.fetchone()
+    
+    if last_kms and last_kms['no_register_kms']:
+        try:
+            digits = ''.join(filter(str.isdigit, last_kms['no_register_kms']))
+            last_number = int(digits) if digits else 0
+            next_number = last_number + 1
+        except:
+            next_number = 1
+    else:
+        next_number = 1
+        
+    return f"{next_number:06d}"
+
+# ==========================================
 # 2. SISTEM AUTENTIKASI & REGISTRASI
 # ==========================================
 @app.route('/login', methods=['GET', 'POST'])
@@ -79,13 +98,12 @@ def register():
         nama_ortu = request.form.get('nama_ortu')
         alamat_lengkap = request.form.get('alamat_lengkap')
         posyandu = request.form.get('posyandu_terdaftar')
-        no_kms = request.form.get('no_register_kms')
         
         bb_lahir = request.form.get('bb_lahir') or 0
         pb_lahir = request.form.get('pb_lahir') or 0
 
         if not username or not password or not nik_anak:
-            flash('Gagal mendaftar: Pastikan form HTML sudah versi terbaru dan terisi semua!', 'danger')
+            flash('Gagal mendaftar: Pastikan form terisi semua!', 'danger')
             return redirect(url_for('register'))
 
         conn = get_db_connection()
@@ -103,6 +121,8 @@ def register():
             conn.close()
             return redirect(url_for('register'))
 
+        # Otomatis generate No KMS 6 digit berurutan
+        no_kms = generate_no_kms(cursor)
         hashed_password = generate_password_hash(password)
         
         try:
@@ -117,7 +137,7 @@ def register():
                   alamat_lengkap, posyandu, no_kms, float(bb_lahir), float(pb_lahir)))
             
             conn.commit()
-            flash('Pendaftaran berhasil! Silakan login.', 'success')
+            flash(f'Pendaftaran berhasil! No. KMS otomatis Anda: {no_kms}', 'success')
             return redirect(url_for('login'))
         except Exception as e:
             conn.rollback()
@@ -138,7 +158,6 @@ def index():
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
     
-    # Inisialisasi variabel statistik
     statistik = {
         'total_anak': 0,
         'stunting': 0,
@@ -155,23 +174,19 @@ def index():
         sapaan = "Admin"
         anak_data = cursor.fetchall()
         
-        # Hitung statistik makro untuk Admin
         cursor.execute("SELECT COUNT(*) as total FROM anak")
         res_total = cursor.fetchone()
         statistik['total_anak'] = res_total['total'] if res_total else 0
         
-        # Hitung Stunting
         cursor.execute("SELECT COUNT(*) as total FROM status_gizi WHERE tb_u LIKE '%Stunting%' OR tb_u LIKE '%Sangat Pendek%'")
         res_stunting = cursor.fetchone()
         statistik['stunting'] = res_stunting['total'] if res_stunting else 0
         
-        # Hitung Gizi Kurang/Buruk
         cursor.execute("SELECT COUNT(*) as total FROM status_gizi WHERE bb_u LIKE '%Gizi Kurang%' OR bb_u LIKE '%Gizi Buruk%'")
         res_gizi = cursor.fetchone()
         statistik['gizi_kurang_buruk'] = res_gizi['total'] if res_gizi else 0
         
     conn.close()
-    
     return render_template('index.html', anak_data=anak_data, sapaan=sapaan, role=session['role'], username=session['username'], statistik=statistik)
 
 @app.route('/profil', methods=['GET', 'POST'])
@@ -233,7 +248,7 @@ def edit_anak(nik):
 # 4. RUTE 5 MENU UTAMA MIKAdO
 # ==========================================
 
-@app.route('/identitas')
+@app.route('/identitas', methods=['GET', 'POST'])
 def identitas():
     if 'role' not in session:
         return redirect(url_for('login'))
@@ -241,14 +256,50 @@ def identitas():
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
     
+    # Jika admin menambah anak langsung lewat modul identitas
+    if request.method == 'POST' and session['role'] == 'admin':
+        nik_anak = request.form.get('nik_anak')
+        nama_anak = request.form.get('nama_anak')
+        tanggal_lahir = request.form.get('tanggal_lahir')
+        jenis_kelamin = request.form.get('jenis_kelamin')
+        nama_ortu = request.form.get('nama_ortu')
+        alamat_lengkap = request.form.get('alamat_lengkap')
+        posyandu = request.form.get('posyandu_terdaftar')
+        bb_lahir = request.form.get('bb_lahir') or 0
+        pb_lahir = request.form.get('pb_lahir') or 0
+
+        no_kms = generate_no_kms(cursor)
+
+        try:
+            cursor.execute("""
+                INSERT INTO anak (nik_anak, nama_lengkap, tanggal_lahir, jenis_kelamin, 
+                                  nama_ortu, username_ortu, alamat_lengkap, posyandu_terdaftar, 
+                                  no_register_kms, bb_lahir, pb_lahir) 
+                VALUES (%s, %s, %s, %s, %s, 'admin_input', %s, %s, %s, %s, %s)
+            """, (nik_anak, nama_anak, tanggal_lahir, jenis_kelamin, nama_ortu, 
+                  alamat_lengkap, posyandu, no_kms, float(bb_lahir), float(pb_lahir)))
+            conn.commit()
+            flash(f'Anak berhasil ditambahkan dengan No. KMS otomatis: {no_kms}', 'success')
+        except Exception as e:
+            conn.rollback()
+            flash(f'Gagal menambah data: {str(e)}', 'danger')
+        return redirect(url_for('identitas'))
+
+    cari = request.args.get('cari')
     if session['role'] == 'ortu':
         cursor.execute("SELECT * FROM anak WHERE username_ortu = %s", (session['username'],))
+        data_anak = cursor.fetchall()
+        daftar_anak = data_anak
     else:
-        cursor.execute("SELECT * FROM anak")
-        
-    data_anak = cursor.fetchall()
+        if cari:
+            cursor.execute("SELECT * FROM anak WHERE nik_anak = %s OR no_register_kms = %s", (cari, cari))
+            data_anak = cursor.fetchall()
+        else:
+            data_anak = []
+        daftar_anak = []
+
     conn.close()
-    return render_template('ui_identitas.html', data_anak=data_anak)
+    return render_template('ui_identitas.html', data_anak=data_anak, daftar_anak=daftar_anak, role=session['role'])
 
 
 @app.route('/pengukuran', methods=['GET', 'POST'])
@@ -259,21 +310,29 @@ def pengukuran():
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
     
-    # 1. Endpoint AJAX untuk Grafik KMS
+    # Endpoint AJAX untuk Grafik KMS
     grafik_nik = request.args.get('grafik_nik')
     if grafik_nik:
         if session['role'] == 'ortu':
             cursor.execute("SELECT usia_bulan, berat_badan, tinggi_badan FROM pengukuran WHERE nik_anak=%s AND nik_anak IN (SELECT nik_anak FROM anak WHERE username_ortu=%s) ORDER BY usia_bulan ASC", (grafik_nik, session['username']))
         else:
             cursor.execute("SELECT usia_bulan, berat_badan, tinggi_badan FROM pengukuran WHERE nik_anak=%s ORDER BY usia_bulan ASC", (grafik_nik,))
-        
         data_grafik = cursor.fetchall()
         conn.close()
         return jsonify(data_grafik)
 
-    # 2. Tangkap Input & Kalkulasi Z-SCORE WHO + Deteksi Tren
+    # Tangkap Input & Konversi NIK / No. KMS (Khusus Admin)
     if request.method == 'POST' and session['role'] == 'admin':
-        nik_anak = request.form['nik_anak']
+        nik_input = request.form['nik_anak']
+        cursor.execute("SELECT nik_anak, jenis_kelamin FROM anak WHERE nik_anak = %s OR no_register_kms = %s", (nik_input, nik_input))
+        anak_info = cursor.fetchone()
+        
+        if not anak_info:
+            flash('Gagal: NIK atau No. KMS anak tidak ditemukan di database!', 'danger')
+            return redirect(url_for('pengukuran'))
+            
+        nik_anak = anak_info['nik_anak']
+        jk = anak_info['jenis_kelamin']
         tgl_ukur = request.form['tanggal_pengukuran']
         usia = float(request.form['usia_bulan'])
         bb = float(request.form['berat_badan'])
@@ -281,11 +340,6 @@ def pengukuran():
         lingkar = request.form.get('lingkar_kepala', 0)
         lila = request.form.get('lila', 0)
         
-        cursor.execute("SELECT jenis_kelamin FROM anak WHERE nik_anak = %s", (nik_anak,))
-        anak_info = cursor.fetchone()
-        jk = anak_info['jenis_kelamin'] if anak_info else 'L'
-        
-        # DETEKSI TREN "T" (Tidak Naik) ATAU "N" (Naik)
         cursor.execute("SELECT berat_badan FROM pengukuran WHERE nik_anak = %s ORDER BY usia_bulan DESC LIMIT 1", (nik_anak,))
         data_lama = cursor.fetchone()
         
@@ -335,10 +389,11 @@ def pengukuran():
         """, (id_pengukuran, bb_u_status, tb_u_status, "TBA", "Tidak Dipakai", kategori_status))
         
         conn.commit()
-        flash('Data berhasil ditambahkan dengan perhitungan Z-Score standar dan deteksi tren!', 'success')
+        flash('Data pengukuran berhasil ditambahkan!', 'success')
         return redirect(url_for('pengukuran'))
 
-    # 3. Render Tabel Data (dengan status gizi digabung)
+    # Render Tabel Pengukuran berdasarkan Search Engine Admin / Ortu
+    cari = request.args.get('cari')
     if session['role'] == 'ortu':
         cursor.execute("""
             SELECT p.*, a.nama_lengkap, s.kategori_status 
@@ -347,20 +402,25 @@ def pengukuran():
             LEFT JOIN status_gizi s ON p.id_pengukuran = s.id_pengukuran
             WHERE a.username_ortu = %s ORDER BY p.tanggal_pengukuran DESC
         """, (session['username'],))
+        data_pengukuran = cursor.fetchall()
+        cursor.execute("SELECT nik_anak, nama_lengkap FROM anak WHERE username_ortu = %s", (session['username'],))
+        daftar_anak = cursor.fetchall()
     else:
-        cursor.execute("""
-            SELECT p.*, a.nama_lengkap, s.kategori_status 
-            FROM pengukuran p 
-            JOIN anak a ON p.nik_anak = a.nik_anak 
-            LEFT JOIN status_gizi s ON p.id_pengukuran = s.id_pengukuran
-            ORDER BY p.tanggal_pengukuran DESC
-        """)
-        
-    data_pengukuran = cursor.fetchall()
-    cursor.execute("SELECT nik_anak, nama_lengkap FROM anak")
-    daftar_anak = cursor.fetchall()
+        if cari:
+            cursor.execute("""
+                SELECT p.*, a.nama_lengkap, s.kategori_status 
+                FROM pengukuran p 
+                JOIN anak a ON p.nik_anak = a.nik_anak 
+                LEFT JOIN status_gizi s ON p.id_pengukuran = s.id_pengukuran
+                WHERE a.nik_anak = %s OR a.no_register_kms = %s 
+                ORDER BY p.tanggal_pengukuran DESC
+            """, (cari, cari))
+            data_pengukuran = cursor.fetchall()
+        else:
+            data_pengukuran = []
+        daftar_anak = []
+
     conn.close()
-    
     return render_template('ui_pengukuran.html', data_pengukuran=data_pengukuran, daftar_anak=daftar_anak, role=session['role'])
 
 
@@ -371,6 +431,7 @@ def gizi():
         
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
+    cari = request.args.get('cari')
     
     if session['role'] == 'ortu':
         query = """
@@ -382,19 +443,25 @@ def gizi():
             ORDER BY p.tanggal_pengukuran DESC
         """
         cursor.execute(query, (session['username'],))
+        data_gizi = cursor.fetchall()
+        cursor.execute("SELECT nik_anak, nama_lengkap FROM anak WHERE username_ortu = %s", (session['username'],))
+        daftar_anak = cursor.fetchall()
     else:
-        query = """
-            SELECT a.nama_lengkap, p.usia_bulan, s.bb_u, s.tb_u, s.bb_tb, s.imt_u, s.kategori_status 
-            FROM status_gizi s
-            JOIN pengukuran p ON s.id_pengukuran = p.id_pengukuran
-            JOIN anak a ON p.nik_anak = a.nik_anak
-            ORDER BY p.tanggal_pengukuran DESC
-        """
-        cursor.execute(query)
-        
-    data_gizi = cursor.fetchall()
+        if cari:
+            query = """
+                SELECT a.nama_lengkap, p.usia_bulan, s.bb_u, s.tb_u, s.bb_tb, s.imt_u, s.kategori_status 
+                FROM status_gizi s
+                JOIN pengukuran p ON s.id_pengukuran = p.id_pengukuran
+                JOIN anak a ON p.nik_anak = a.nik_anak
+                WHERE a.nik_anak = %s OR a.no_register_kms = %s
+                ORDER BY p.tanggal_pengukuran DESC
+            """
+            cursor.execute(query, (cari, cari))
+            data_gizi = cursor.fetchall()
+        else:
+            data_gizi = []
+        daftar_anak = []
 
-    # --- MODUL AI REKOMENDASI GIZI ---
     cursor.execute("SELECT * FROM rekomendasi_gizi")
     semua_resep = cursor.fetchall()
 
@@ -402,7 +469,6 @@ def gizi():
         bb_u = item.get('bb_u') or ''
         usia = float(item.get('usia_bulan') or 0)
 
-        # Penyesuaian Kategori Status ke Tabel rekomendasi_gizi
         if 'Kurang' in bb_u or 'Buruk' in bb_u:
             target_status = 'Gizi Kurang'
         elif 'Lebih' in bb_u or 'Obesitas' in bb_u:
@@ -410,7 +476,6 @@ def gizi():
         else:
             target_status = 'Normal'
 
-        # Pencocokan Rekomendasi berdasarkan Status & Rentang Usia
         rekomendasi_terpilih = []
         for resep in semua_resep:
             if resep['kategori_status'] == target_status and resep['usia_min_bulan'] <= usia <= resep['usia_max_bulan']:
@@ -419,12 +484,9 @@ def gizi():
         item['rekomendasi'] = rekomendasi_terpilih
 
     conn.close()
-    return render_template('ui_gizi.html', data_gizi=data_gizi)
+    return render_template('ui_gizi.html', data_gizi=data_gizi, daftar_anak=daftar_anak, role=session['role'])
 
 
-# ==========================================
-# RUTE RIWAYAT
-# ==========================================
 @app.route('/riwayat', methods=['GET', 'POST'])
 def riwayat():
     if 'role' not in session:
@@ -433,18 +495,24 @@ def riwayat():
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
     
-    # 1. MENANGKAP DATA FORM (POST)
+    # Tangkap Form POST & Resolusi NIK/KMS
     if request.method == 'POST' and session['role'] == 'admin':
-        nik = request.form.get('nik_anak')
+        nik_input = request.form.get('nik_anak')
+        cursor.execute("SELECT nik_anak FROM anak WHERE nik_anak = %s OR no_register_kms = %s", (nik_input, nik_input))
+        anak_info = cursor.fetchone()
+        
+        if not anak_info:
+            flash('Gagal: NIK atau No. KMS anak tidak ditemukan.', 'danger')
+            return redirect(url_for('riwayat'))
+            
+        nik = anak_info['nik_anak']
         asi = request.form.get('asi_eksklusif', '-')
         vit_a = request.form.get('vitamin_a', '-')
         alergi = request.form.get('catatan_penyakit', '-')
         
-        # Tangkap Checkbox sebagai List lalu gabungkan dengan koma
         list_imunisasi = request.form.getlist('imunisasi')
         imunisasi = ", ".join(list_imunisasi) if list_imunisasi else "Belum ada"
         
-        # Data default untuk kolom tabel DB lama yang tidak ada di HTML baru
         mpasi = '-'
         rawat = '-'
         
@@ -461,7 +529,7 @@ def riwayat():
             
         return redirect(url_for('riwayat'))
     
-    # 2. MENAMPILKAN DATA TABEL (GET)
+    cari = request.args.get('cari')
     if session['role'] == 'ortu':
         cursor.execute("""
             SELECT r.*, 
@@ -473,23 +541,27 @@ def riwayat():
             JOIN anak a ON r.nik_anak = a.nik_anak
             WHERE a.username_ortu = %s
         """, (session['username'],))
+        data_riwayat = cursor.fetchall()
+        cursor.execute("SELECT nik_anak, nama_lengkap FROM anak WHERE username_ortu = %s", (session['username'],))
+        daftar_anak = cursor.fetchall()
     else:
-        cursor.execute("""
-            SELECT r.*, 
-                   r.riwayat_imunisasi AS imunisasi, 
-                   r.riwayat_penyakit_alergi AS catatan_penyakit,
-                   CURRENT_DATE() AS tanggal_catat,
-                   a.nama_lengkap 
-            FROM riwayat_kesehatan r 
-            JOIN anak a ON r.nik_anak = a.nik_anak
-        """)
+        if cari:
+            cursor.execute("""
+                SELECT r.*, 
+                       r.riwayat_imunisasi AS imunisasi, 
+                       r.riwayat_penyakit_alergi AS catatan_penyakit,
+                       CURRENT_DATE() AS tanggal_catat,
+                       a.nama_lengkap 
+                FROM riwayat_kesehatan r 
+                JOIN anak a ON r.nik_anak = a.nik_anak
+                WHERE a.nik_anak = %s OR a.no_register_kms = %s
+            """, (cari, cari))
+            data_riwayat = cursor.fetchall()
+        else:
+            data_riwayat = []
+        daftar_anak = []
         
-    data_riwayat = cursor.fetchall()
-    
-    cursor.execute("SELECT nik_anak, nama_lengkap FROM anak")
-    daftar_anak = cursor.fetchall()
     conn.close()
-    
     return render_template('ui_riwayat.html', data_riwayat=data_riwayat, daftar_anak=daftar_anak, role=session['role'])
 
 
@@ -512,7 +584,15 @@ def perkembangan():
     
     try:
         if request.method == 'POST' and session['role'] == 'admin':
-            nik = request.form['nik_anak']
+            nik_input = request.form['nik_anak']
+            cursor.execute("SELECT nik_anak FROM anak WHERE nik_anak = %s OR no_register_kms = %s", (nik_input, nik_input))
+            anak_info = cursor.fetchone()
+            
+            if not anak_info:
+                flash("Gagal: NIK atau No. KMS tidak ditemukan.", "danger")
+                return redirect(url_for('perkembangan'))
+                
+            nik = anak_info['nik_anak']
             tugas_list = request.form.getlist('tugas[]') 
             
             cursor.execute("DELETE FROM pencapaian_perkembangan WHERE nik_anak = %s", (nik,))
@@ -520,41 +600,50 @@ def perkembangan():
                 cursor.execute("INSERT INTO pencapaian_perkembangan (nik_anak, kode_tugas) VALUES (%s, %s)", (nik, kode))
             conn.commit()
             flash('Capaian perkembangan berhasil diperbarui!', 'success')
-            return redirect(url_for('perkembangan', nik=nik))
+            return redirect(url_for('perkembangan', cari_anak=nik))
 
-        nik_filter = request.args.get('nik', '')
+        cari_input = request.args.get('cari_anak', '')
         checked_tasks = []
-        if nik_filter:
-            cursor.execute("SELECT kode_tugas FROM pencapaian_perkembangan WHERE nik_anak = %s", (nik_filter,))
-            for row in cursor.fetchall():
-                checked_tasks.append(row['kode_tugas'])
+        nik_filter = ''
+        anak_terpilih = None
+        
+        if cari_input:
+            cursor.execute("SELECT nik_anak, nama_lengkap, no_register_kms FROM anak WHERE nik_anak = %s OR no_register_kms = %s", (cari_input, cari_input))
+            anak_terpilih = cursor.fetchone()
+            
+            if anak_terpilih:
+                nik_filter = anak_terpilih['nik_anak']
+                cursor.execute("SELECT kode_tugas FROM pencapaian_perkembangan WHERE nik_anak = %s", (nik_filter,))
+                for row in cursor.fetchall():
+                    checked_tasks.append(row['kode_tugas'])
+            else:
+                flash("Data anak dengan NIK atau No. KMS tersebut tidak ditemukan.", "danger")
                 
         if session['role'] == 'ortu':
             cursor.execute("SELECT nik_anak, nama_lengkap FROM anak WHERE username_ortu = %s", (session['username'],))
+            daftar_anak = cursor.fetchall()
         else:
-            cursor.execute("SELECT nik_anak, nama_lengkap FROM anak")
+            daftar_anak = []
             
-        daftar_anak = cursor.fetchall()
-        
     except Exception as e:
         flash(f"Gagal memuat data dari database: {str(e)}", "danger")
         daftar_anak = []
         checked_tasks = []
         nik_filter = ''
+        anak_terpilih = None
     finally:
         conn.close()
     
     return render_template('ui_perkembangan.html', 
                            daftar_anak=daftar_anak, role=session['role'], 
-                           nik_terpilih=nik_filter, checked_tasks=checked_tasks,
-                           all_tugas=ALL_TUGAS)
+                           nik_terpilih=nik_filter, anak_terpilih=anak_terpilih,
+                           checked_tasks=checked_tasks, all_tugas=ALL_TUGAS)
 
 # ==========================================
 # 5. FASE 4: API INTEGRASI PUSKESMAS / DINKES
 # ==========================================
 @app.route('/api/v1/anak/<nik>/rekam_medis', methods=['GET'])
 def api_rekam_medis_anak(nik):
-    # Simulasi Keamanan API Key
     api_key = request.headers.get('X-API-KEY')
     if api_key != 'mikado_dinkes_secure_2024':
         return jsonify({'status': 'error', 'message': 'Akses Ditolak: API Key tidak valid!'}), 401
@@ -562,7 +651,6 @@ def api_rekam_medis_anak(nik):
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
     
-    # 1. Ambil Biodata
     cursor.execute("SELECT nik_anak, nama_lengkap, tanggal_lahir, jenis_kelamin, posyandu_terdaftar FROM anak WHERE nik_anak = %s", (nik,))
     anak = cursor.fetchone()
     
@@ -570,7 +658,6 @@ def api_rekam_medis_anak(nik):
         conn.close()
         return jsonify({'status': 'error', 'message': 'Data anak tidak ditemukan'}), 404
         
-    # 2. Ambil Riwayat Pengukuran & Gizi (Join)
     cursor.execute("""
         SELECT p.tanggal_pengukuran, p.usia_bulan, p.berat_badan, p.tinggi_badan, 
                s.bb_u, s.tb_u, s.kategori_status
@@ -581,7 +668,6 @@ def api_rekam_medis_anak(nik):
     """, (nik,))
     riwayat_pertumbuhan = cursor.fetchall()
     
-    # 3. Ambil Riwayat Imunisasi & Penyakit
     cursor.execute("SELECT riwayat_imunisasi, riwayat_penyakit_alergi, asi_eksklusif FROM riwayat_kesehatan WHERE nik_anak = %s ORDER BY id_riwayat DESC LIMIT 1", (nik,))
     riwayat_kesehatan = cursor.fetchone()
     
