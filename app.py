@@ -138,17 +138,41 @@ def index():
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
     
+    # Inisialisasi variabel statistik
+    statistik = {
+        'total_anak': 0,
+        'stunting': 0,
+        'gizi_kurang_buruk': 0
+    }
+    
     if session['role'] == 'ortu':
         cursor.execute("SELECT * FROM anak WHERE username_ortu = %s", (session['username'],))
         sapaan = "Orang Tua"
+        anak_data = cursor.fetchall()
+        statistik['total_anak'] = len(anak_data)
     else:
         cursor.execute("SELECT * FROM anak")
         sapaan = "Admin"
+        anak_data = cursor.fetchall()
         
-    anak_data = cursor.fetchall()
+        # Hitung statistik makro untuk Admin
+        cursor.execute("SELECT COUNT(*) as total FROM anak")
+        res_total = cursor.fetchone()
+        statistik['total_anak'] = res_total['total'] if res_total else 0
+        
+        # Hitung Stunting
+        cursor.execute("SELECT COUNT(*) as total FROM status_gizi WHERE tb_u LIKE '%Stunting%' OR tb_u LIKE '%Sangat Pendek%'")
+        res_stunting = cursor.fetchone()
+        statistik['stunting'] = res_stunting['total'] if res_stunting else 0
+        
+        # Hitung Gizi Kurang/Buruk
+        cursor.execute("SELECT COUNT(*) as total FROM status_gizi WHERE bb_u LIKE '%Gizi Kurang%' OR bb_u LIKE '%Gizi Buruk%'")
+        res_gizi = cursor.fetchone()
+        statistik['gizi_kurang_buruk'] = res_gizi['total'] if res_gizi else 0
+        
     conn.close()
     
-    return render_template('index.html', anak_data=anak_data, sapaan=sapaan, role=session['role'], username=session['username'])
+    return render_template('index.html', anak_data=anak_data, sapaan=sapaan, role=session['role'], username=session['username'], statistik=statistik)
 
 @app.route('/profil', methods=['GET', 'POST'])
 def profil():
@@ -399,7 +423,7 @@ def gizi():
 
 
 # ==========================================
-# RUTE RIWAYAT (TELAH DIPERBAIKI)
+# RUTE RIWAYAT
 # ==========================================
 @app.route('/riwayat', methods=['GET', 'POST'])
 def riwayat():
@@ -524,6 +548,54 @@ def perkembangan():
                            daftar_anak=daftar_anak, role=session['role'], 
                            nik_terpilih=nik_filter, checked_tasks=checked_tasks,
                            all_tugas=ALL_TUGAS)
+
+# ==========================================
+# 5. FASE 4: API INTEGRASI PUSKESMAS / DINKES
+# ==========================================
+@app.route('/api/v1/anak/<nik>/rekam_medis', methods=['GET'])
+def api_rekam_medis_anak(nik):
+    # Simulasi Keamanan API Key
+    api_key = request.headers.get('X-API-KEY')
+    if api_key != 'mikado_dinkes_secure_2024':
+        return jsonify({'status': 'error', 'message': 'Akses Ditolak: API Key tidak valid!'}), 401
+        
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    
+    # 1. Ambil Biodata
+    cursor.execute("SELECT nik_anak, nama_lengkap, tanggal_lahir, jenis_kelamin, posyandu_terdaftar FROM anak WHERE nik_anak = %s", (nik,))
+    anak = cursor.fetchone()
+    
+    if not anak:
+        conn.close()
+        return jsonify({'status': 'error', 'message': 'Data anak tidak ditemukan'}), 404
+        
+    # 2. Ambil Riwayat Pengukuran & Gizi (Join)
+    cursor.execute("""
+        SELECT p.tanggal_pengukuran, p.usia_bulan, p.berat_badan, p.tinggi_badan, 
+               s.bb_u, s.tb_u, s.kategori_status
+        FROM pengukuran p
+        LEFT JOIN status_gizi s ON p.id_pengukuran = s.id_pengukuran
+        WHERE p.nik_anak = %s 
+        ORDER BY p.tanggal_pengukuran ASC
+    """, (nik,))
+    riwayat_pertumbuhan = cursor.fetchall()
+    
+    # 3. Ambil Riwayat Imunisasi & Penyakit
+    cursor.execute("SELECT riwayat_imunisasi, riwayat_penyakit_alergi, asi_eksklusif FROM riwayat_kesehatan WHERE nik_anak = %s ORDER BY id_riwayat DESC LIMIT 1", (nik,))
+    riwayat_kesehatan = cursor.fetchone()
+    
+    conn.close()
+    
+    return jsonify({
+        'status': 'success',
+        'sumber_data': 'Aplikasi MIKAdO',
+        'data': {
+            'identitas_pasien': anak,
+            'kesehatan_terakhir': riwayat_kesehatan,
+            'grafik_pertumbuhan': riwayat_pertumbuhan
+        }
+    })
 
 if __name__ == '__main__':
     app.run(debug=True, ssl_context='adhoc')
