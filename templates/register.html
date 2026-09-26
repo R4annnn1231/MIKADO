@@ -3,125 +3,126 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Daftar Akun & Identitas - MIKAdO</title>
+    <title>Daftar Akun & Identitas Anak - MIKAdO</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
         body {
-            background: linear-gradient(rgba(88, 28, 135, 0.9), rgba(126, 34, 206, 0.9)), url("{{ url_for('static', filename='background.jpg') }}") !important;
-            background-size: cover !important;
-            background-position: center !important;
-            background-attachment: fixed !important;
+            background: linear-gradient(rgba(88, 28, 135, 0.85), rgba(126, 34, 206, 0.85)), 
+                        url("{{ url_for('static', filename='background.jpg') }}");
+            background-size: cover;
+            background-position: center;
+            background-attachment: fixed;
             min-height: 100vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 40px 0;
-            font-family: 'Segoe UI', Tahoma, sans-serif;
         }
-        .glass-card {
-            background: rgba(255, 255, 255, 0.95);
-            border-radius: 12px;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
-            padding: 40px;
-            width: 100%;
-            max-width: 800px;
-        }
-        .btn-ungu { background-color: #581c87; color: white; border: none; font-weight: bold; }
+        .card { background-color: rgba(255, 255, 255, 0.96); border-radius: 12px; }
+        .text-ungu { color: #6f42c1 !important; }
+        .bg-ungu { background-color: #6f42c1 !important; color: white !important; }
+        .btn-ungu { background-color: #581c87; color: white; border: none; font-weight: 500; }
         .btn-ungu:hover { background-color: #4c1d95; color: white; }
     </style>
 </head>
 <body>
-    <div class="glass-card">
-        <div class="text-center mb-4">
-            <h3 class="fw-bold text-dark">📝 Daftar Akun & Identitas Anak</h3>
-            <p class="text-muted">Lengkapi data di bawah ini agar terhubung dengan sistem KMS</p>
+    <div class="container py-5">
+        <div class="row justify-content-center">
+            <div class="col-md-8 col-lg-7">
+                <div class="card shadow-lg border-0 p-4 p-md-5">
+                    <div class="text-center mb-4">
+                        <h3 class="fw-bold text-ungu">📝 Daftar Akun & Identitas Anak</h3>
+                        <p class="text-muted small">Lengkapi data di bawah ini. Nomor Register KMS akan otomatis di-generate oleh sistem (6 digit berurutan).</p>
+                    </div>
+
+                    {% with messages = get_flashed_messages(with_categories=true) %}
+                      {% if messages %}
+                        {% for category, message in messages %}
+                          <div class="alert alert-{{ category }} alert-dismissible fade show text-center fw-bold shadow-sm" role="alert">
+                            {{ message }}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                          </div>
+                        {% endfor %}
+                      {% endif %}
+                    {% endwith %}
+
+                    <form method="POST" action="{{ url_for('register') }}">
+                        <!-- BAGIAN 1: AKUN LOGIN -->
+                        <h5 class="text-ungu fw-bold mb-3 border-bottom pb-2">1. Informasi Akun (Untuk Login)</h5>
+                        <div class="row mb-3">
+                            <div class="col-md-6 mb-3 mb-md-0">
+                                <label class="form-label fw-bold">Username</label>
+                                <input type="text" class="form-control" name="username" placeholder="Buat username unik..." required autocomplete="off">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold">Password</label>
+                                <input type="password" class="form-control" name="password" placeholder="Buat password..." required>
+                            </div>
+                        </div>
+
+                        <!-- BAGIAN 2: IDENTITAS ANAK & ORTU -->
+                        <h5 class="text-ungu fw-bold mb-3 mt-4 border-bottom pb-2">2. Identitas Anak & Orang Tua</h5>
+                        <div class="row mb-3">
+                            <div class="col-md-6 mb-3 mb-md-0">
+                                <label class="form-label fw-bold">NIK Anak</label>
+                                <input type="text" class="form-control" name="nik_anak" placeholder="Masukkan 16 digit NIK..." maxlength="16" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold">Nama Lengkap Anak</label>
+                                <input type="text" class="form-control" name="nama_anak" placeholder="Sesuai Akta Kelahiran/KK..." required>
+                            </div>
+                        </div>
+
+                        <div class="row mb-3">
+                            <div class="col-md-6 mb-3 mb-md-0">
+                                <label class="form-label fw-bold">Tanggal Lahir</label>
+                                <input type="date" class="form-control" name="tanggal_lahir" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold">Jenis Kelamin</label>
+                                <select class="form-select" name="jenis_kelamin" required>
+                                    <option value="">-- Pilih Jenis Kelamin --</option>
+                                    <option value="L">Laki-laki (L)</option>
+                                    <option value="P">Perempuan (P)</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="row mb-3">
+                            <div class="col-md-6 mb-3 mb-md-0">
+                                <label class="form-label fw-bold">Nama Orang Tua</label>
+                                <input type="text" class="form-control" name="nama_ortu" placeholder="Nama Ibu/Ayah..." required>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold">Posyandu Terdaftar</label>
+                                <input type="text" class="form-control" name="posyandu_terdaftar" placeholder="Contoh: Posyandu Melati..." required>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Alamat Lengkap</label>
+                            <textarea class="form-control" name="alamat_lengkap" rows="2" placeholder="Masukkan alamat domisili..."></textarea>
+                        </div>
+
+                        <div class="row mb-4">
+                            <div class="col-md-6 mb-3 mb-md-0">
+                                <label class="form-label fw-bold">Berat Lahir (kg)</label>
+                                <input type="number" step="0.01" min="0.5" max="10" class="form-control" name="bb_lahir" placeholder="Contoh: 3.2">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold">Panjang Lahir (cm)</label>
+                                <input type="number" step="0.1" min="30" max="65" class="form-control" name="pb_lahir" placeholder="Contoh: 49.5">
+                            </div>
+                        </div>
+
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-ungu btn-lg fw-bold shadow-sm">Daftar Sekarang</button>
+                        </div>
+
+                        <div class="text-center mt-3">
+                            <p class="text-muted small mb-0">Sudah punya akun? <a href="{{ url_for('login') }}" class="text-ungu fw-bold text-decoration-none">Login di sini</a></p>
+                        </div>
+                    </form>
+                </div>
+            </div>
         </div>
-        
-        {% with messages = get_flashed_messages(with_categories=true) %}
-          {% if messages %}
-            {% for category, message in messages %}
-              <div class="alert alert-{{ category }} text-center fw-bold">{{ message }}</div>
-            {% endfor %}
-          {% endif %}
-        {% endwith %}
-
-        <form method="POST" action="{{ url_for('register') }}">
-            <!-- Bagian Kredensial Login -->
-            <h5 class="text-primary mb-3 border-bottom pb-2">1. Informasi Akun (Untuk Login)</h5>
-            <div class="row mb-4">
-                <div class="col-md-6 mb-3">
-                    <label class="form-label fw-bold text-secondary">Username</label>
-                    <input type="text" class="form-control" name="username" required placeholder="Buat username unik...">
-                </div>
-                <div class="col-md-6 mb-3">
-                    <label class="form-label fw-bold text-secondary">Password</label>
-                    <input type="password" class="form-control" name="password" required placeholder="Buat password yang kuat...">
-                </div>
-            </div>
-
-            <!-- Bagian Data Anak -->
-            <h5 class="text-primary mb-3 border-bottom pb-2">2. Identitas Anak & Orang Tua</h5>
-            <div class="row">
-                <div class="col-md-6 mb-3">
-                    <label class="form-label fw-bold text-secondary">NIK Anak</label>
-                    <input type="text" class="form-control" name="nik_anak" required placeholder="Masukkan 16 digit NIK Anak...">
-                </div>
-                <div class="col-md-6 mb-3">
-                    <label class="form-label fw-bold text-secondary">Nama Lengkap Anak</label>
-                    <input type="text" class="form-control" name="nama_anak" required placeholder="Sesuai Akta Kelahiran/KK...">
-                </div>
-            </div>
-            
-            <div class="row">
-                <div class="col-md-6 mb-3">
-                    <label class="form-label fw-bold text-secondary">Tanggal Lahir</label>
-                    <input type="date" class="form-control" name="tanggal_lahir" required>
-                </div>
-                <div class="col-md-6 mb-3">
-                    <label class="form-label fw-bold text-secondary">Jenis Kelamin</label>
-                    <select class="form-select" name="jenis_kelamin" required>
-                        <option value="L">Laki-laki</option>
-                        <option value="P">Perempuan</option>
-                    </select>
-                </div>
-            </div>
-
-            <div class="row">
-                <div class="col-md-6 mb-3">
-                    <label class="form-label fw-bold text-secondary">Nama Orang Tua</label>
-                    <input type="text" class="form-control" name="nama_ortu" required placeholder="Nama Ibu/Ayah...">
-                </div>
-                <div class="col-md-6 mb-3">
-                    <label class="form-label fw-bold text-secondary">Posyandu Terdaftar</label>
-                    <input type="text" class="form-control" name="posyandu_terdaftar" required placeholder="Contoh: Posyandu Melati...">
-                </div>
-            </div>
-
-            <div class="mb-3">
-                <label class="form-label fw-bold text-secondary">Alamat Lengkap</label>
-                <textarea class="form-control" name="alamat_lengkap" rows="2" required placeholder="Masukkan alamat domisili..."></textarea>
-            </div>
-
-            <div class="row mb-4">
-                <div class="col-md-4 mb-3">
-                    <label class="form-label fw-bold text-secondary">No. Register KMS</label>
-                    <input type="text" class="form-control" name="no_register_kms" required placeholder="No Buku KIA/KMS...">
-                </div>
-                <div class="col-md-4 mb-3">
-                    <label class="form-label fw-bold text-secondary">Berat Lahir (kg)</label>
-                    <input type="number" step="0.1" class="form-control" name="bb_lahir" required placeholder="Contoh: 3.2">
-                </div>
-                <div class="col-md-4 mb-3">
-                    <label class="form-label fw-bold text-secondary">Panjang Lahir (cm)</label>
-                    <input type="number" step="0.1" class="form-control" name="pb_lahir" required placeholder="Contoh: 49.5">
-                </div>
-            </div>
-
-            <button type="submit" class="btn btn-ungu w-100 py-2 fs-5">Daftar Sekarang</button>
-            <div class="text-center mt-3">
-                <small class="text-muted">Sudah punya akun? <a href="{{ url_for('login') }}" class="text-decoration-none fw-bold" style="color: #6f42c1;">Login di sini</a></small>
-            </div>
-        </form>
     </div>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
