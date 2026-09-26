@@ -16,10 +16,28 @@
     <div class="container mt-5 mb-5">
         <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
             <h2 class="text-white fw-bold">Data Identitas Anak</h2>
-            <a href="{{ url_for('index') }}" class="btn btn-ungu">Kembali ke Dashboard</a>
+            <div>
+                {% if role == 'admin' %}
+                <button type="button" class="btn btn-warning fw-bold text-dark me-2 shadow-sm" data-bs-toggle="modal" data-bs-target="#modalTambahAnak">
+                    + Tambah Anak
+                </button>
+                {% endif %}
+                <a href="{{ url_for('index') }}" class="btn btn-ungu shadow-sm">Kembali ke Dashboard</a>
+            </div>
         </div>
 
-        <!-- SEARCH BAR UNTUK ADMIN / DROPDOWN ORTU -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+          {% if messages %}
+            {% for category, message in messages %}
+              <div class="alert alert-{{ category }} alert-dismissible fade show text-center fw-bold shadow-sm" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+              </div>
+            {% endfor %}
+          {% endif %}
+        {% endwith %}
+
+        <!-- SEARCH BAR ADMIN / ORTU -->
         <div class="card shadow-sm mb-4 border-0">
             <div class="card-body bg-light rounded">
                 <form method="GET" action="" class="d-flex align-items-center flex-wrap gap-2">
@@ -81,7 +99,7 @@
                                 </tr>
                                 {% endfor %}
                             {% else %}
-                                <tr><td colspan="9" class="text-center text-muted py-4">{% if role == 'admin' %}Silakan masukkan NIK atau No. KMS di atas untuk mencari data.{% else %}Belum ada data identitas anak.{% endif %}</td></tr>
+                                <tr><td colspan="9" class="text-center text-muted py-4">{% if role == 'admin' %}Silakan masukkan NIK atau No. KMS di atas, atau klik tombol <b>"+ Tambah Anak"</b> untuk mendaftarkan anak baru.{% else %}Belum ada data identitas anak.{% endif %}</td></tr>
                             {% endif %}
                         </tbody>
                     </table>
@@ -89,5 +107,80 @@
             </div>
         </div>
     </div>
+
+    <!-- MODAL TAMBAH ANAK MANUAL (KHUSUS ADMIN) -->
+    {% if role == 'admin' %}
+    <div class="modal fade" id="modalTambahAnak" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-lg">
+            <div class="modal-content">
+                <div class="modal-header bg-ungu text-white">
+                    <h5 class="modal-title fw-bold">Tambah Data Anak Baru (Admin)</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <form method="POST" action="{{ url_for('identitas') }}">
+                    <div class="modal-body">
+                        <div class="alert alert-info py-2 mb-3">
+                            <small>💡 **No. KMS** akan digenerate secara otomatis oleh sistem berupa 6 digit angka berurutan standar nasional (contoh: <code>000001</code>).</small>
+                        </div>
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold">NIK Anak</label>
+                                <input type="text" class="form-control" name="nik_anak" placeholder="Masukkan 16 digit NIK..." maxlength="16" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold">Nama Lengkap Anak</label>
+                                <input type="text" class="form-control" name="nama_anak" placeholder="Nama lengkap anak..." required>
+                            </div>
+                        </div>
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold">Tanggal Lahir</label>
+                                <input type="date" class="form-control" name="tanggal_lahir" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold">Jenis Kelamin</label>
+                                <select class="form-select" name="jenis_kelamin" required>
+                                    <option value="">-- Pilih Jenis Kelamin --</option>
+                                    <option value="L">Laki-laki (L)</option>
+                                    <option value="P">Perempuan (P)</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold">Nama Orang Tua</label>
+                                <input type="text" class="form-control" name="nama_ortu" placeholder="Nama Ayah / Ibu..." required>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold">Posyandu Terdaftar</label>
+                                <input type="text" class="form-control" name="posyandu_terdaftar" placeholder="Contoh: Posyandu Melati 1..." required>
+                            </div>
+                        </div>
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold">Berat Badan Lahir (kg)</label>
+                                <input type="number" step="0.01" min="0.5" max="10" class="form-control" name="bb_lahir" placeholder="Contoh: 3.1">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold">Panjang Badan Lahir (cm)</label>
+                                <input type="number" step="0.1" min="30" max="65" class="form-control" name="pb_lahir" placeholder="Contoh: 50.0">
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Alamat Lengkap</label>
+                            <textarea class="form-control" name="alamat_lengkap" rows="2" placeholder="Alamat domisili lengkap..."></textarea>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
+                        <button type="submit" class="btn btn-ungu fw-bold">Simpan & Generate No. KMS</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
