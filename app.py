@@ -38,12 +38,10 @@ def login():
         user = cursor.fetchone()
         
         if user:
-            # Verifikasi password
             if check_password_hash(user['password'], password) or user['password'] == password:
                 session['role'] = user['role']
                 session['username'] = user['username']
                 
-                # Jika role adalah ortu, ambil NIK anak
                 if user['role'] == 'ortu':
                     cursor.execute("SELECT nik_anak FROM anak WHERE username_ortu = %s", (username,))
                     anak = cursor.fetchone()
@@ -71,11 +69,9 @@ def register():
         return redirect(url_for('index'))
         
     if request.method == 'POST':
-        # Menggunakan .get() agar tidak crash 400 Bad Request
         username = request.form.get('username')
         password = request.form.get('password')
         
-        # Data Anak (Tabel anak)
         nik_anak = request.form.get('nik_anak')
         nama_anak = request.form.get('nama_anak')
         tanggal_lahir = request.form.get('tanggal_lahir')
@@ -85,11 +81,9 @@ def register():
         posyandu = request.form.get('posyandu_terdaftar')
         no_kms = request.form.get('no_register_kms')
         
-        # Penanganan khusus angka agar tidak error jika kosong
         bb_lahir = request.form.get('bb_lahir') or 0
         pb_lahir = request.form.get('pb_lahir') or 0
 
-        # Validasi ringan
         if not username or not password or not nik_anak:
             flash('Gagal mendaftar: Pastikan form HTML sudah versi terbaru dan terisi semua!', 'danger')
             return redirect(url_for('register'))
@@ -97,7 +91,6 @@ def register():
         conn = get_db_connection()
         cursor = conn.cursor(dictionary=True)
         
-        # Cek apakah username atau NIK sudah terdaftar
         cursor.execute("SELECT * FROM users WHERE username = %s", (username,))
         if cursor.fetchone():
             flash('Username sudah digunakan! Silakan pilih yang lain.', 'danger')
@@ -110,14 +103,11 @@ def register():
             conn.close()
             return redirect(url_for('register'))
 
-        # Enkripsi password
         hashed_password = generate_password_hash(password)
         
         try:
-            # 1. Simpan ke tabel users
             cursor.execute("INSERT INTO users (username, password, role) VALUES (%s, %s, 'ortu')", (username, hashed_password))
             
-            # 2. Simpan ke tabel anak
             cursor.execute("""
                 INSERT INTO anak (nik_anak, nama_lengkap, tanggal_lahir, jenis_kelamin, 
                                   nama_ortu, username_ortu, alamat_lengkap, posyandu_terdaftar, 
@@ -245,19 +235,19 @@ def pengukuran():
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
     
-    # 1. Endpoint AJAX untuk merespons permintaan Grafik KMS Antropometri
+    # 1. Endpoint AJAX untuk Grafik KMS (Menarik BB dan TB)
     grafik_nik = request.args.get('grafik_nik')
     if grafik_nik:
         if session['role'] == 'ortu':
-            cursor.execute("SELECT usia_bulan, berat_badan FROM pengukuran WHERE nik_anak=%s AND nik_anak IN (SELECT nik_anak FROM anak WHERE username_ortu=%s) ORDER BY usia_bulan ASC", (grafik_nik, session['username']))
+            cursor.execute("SELECT usia_bulan, berat_badan, tinggi_badan FROM pengukuran WHERE nik_anak=%s AND nik_anak IN (SELECT nik_anak FROM anak WHERE username_ortu=%s) ORDER BY usia_bulan ASC", (grafik_nik, session['username']))
         else:
-            cursor.execute("SELECT usia_bulan, berat_badan FROM pengukuran WHERE nik_anak=%s ORDER BY usia_bulan ASC", (grafik_nik,))
+            cursor.execute("SELECT usia_bulan, berat_badan, tinggi_badan FROM pengukuran WHERE nik_anak=%s ORDER BY usia_bulan ASC", (grafik_nik,))
         
         data_grafik = cursor.fetchall()
         conn.close()
         return jsonify(data_grafik)
 
-    # 2. Tangkap Data Input Baru (Mode Admin) & Hitung Gizi Otomatis
+    # 2. Tangkap Input & Kalkulasi Z-SCORE WHO
     if request.method == 'POST' and session['role'] == 'admin':
         nik_anak = request.form['nik_anak']
         tgl_ukur = request.form['tanggal_pengukuran']
@@ -267,67 +257,68 @@ def pengukuran():
         lingkar = request.form.get('lingkar_kepala', 0)
         lila = request.form.get('lila', 0)
         
+        # Ambil Jenis Kelamin untuk standar WHO
+        cursor.execute("SELECT jenis_kelamin FROM anak WHERE nik_anak = %s", (nik_anak,))
+        anak_info = cursor.fetchone()
+        jk = anak_info['jenis_kelamin'] if anak_info else 'L'
+        
         # Simpan ke tabel pengukuran
         cursor.execute("""
             INSERT INTO pengukuran (nik_anak, tanggal_pengukuran, usia_bulan, berat_badan, tinggi_badan, lingkar_kepala, lila) 
             VALUES (%s, %s, %s, %s, %s, %s, %s)
         """, (nik_anak, tgl_ukur, usia, bb, tb, lingkar, lila))
         
-        id_pengukuran = cursor.lastrowid # Ambil ID yang baru saja masuk
+        id_pengukuran = cursor.lastrowid
         
-        # LOGIKA PERHITUNGAN STATUS GIZI (IMT)
-        tb_m = tb / 100.0 # Ubah cm ke meter
-        if tb_m > 0:
-            imt = round(bb / (tb_m * tb_m), 1)
+        # ALGORITMA Z-SCORE SEDERHANA (BB/U & TB/U)
+        if jk == 'L':
+            bb_normal_bawah = (usia * 0.2) + 3.0  
+            bb_normal_atas = (usia * 0.25) + 4.5  
+            tb_normal_bawah = (usia * 0.8) + 48.0 
         else:
-            imt = 0
+            bb_normal_bawah = (usia * 0.18) + 2.8 
+            bb_normal_atas = (usia * 0.23) + 4.2 
+            tb_normal_bawah = (usia * 0.75) + 47.0 
             
-        # Penentuan Kategori IMT/U Standar Dasar
-        if imt < 13.5:
-            imt_u_status = 'Gizi Buruk'
-        elif 13.5 <= imt < 14.5:
-            imt_u_status = 'Gizi Kurang'
-        elif 14.5 <= imt <= 18.5:
-            imt_u_status = 'Normal'
-        elif 18.5 < imt <= 19.5:
-            imt_u_status = 'Beresiko Lebih'
+        # Penentuan Status BB/U
+        if bb < bb_normal_bawah:
+            bb_u_status = 'Gizi Kurang'
+            if bb < bb_normal_bawah - 1.5: bb_u_status = 'Gizi Buruk'
+        elif bb > bb_normal_atas:
+            bb_u_status = 'Risiko Lebih'
         else:
-            imt_u_status = 'Obesitas'
+            bb_u_status = 'Berat Normal'
             
-        kategori_status = imt_u_status
+        # Penentuan Status TB/U 
+        if tb < tb_normal_bawah:
+            tb_u_status = 'Stunting (Pendek)'
+            if tb < tb_normal_bawah - 3: tb_u_status = 'Sangat Pendek'
+        else:
+            tb_u_status = 'Tinggi Normal'
+            
+        kategori_status = f"{bb_u_status} & {tb_u_status}"
             
         cursor.execute("""
             INSERT INTO status_gizi (id_pengukuran, bb_u, tb_u, bb_tb, imt_u, kategori_status)
             VALUES (%s, %s, %s, %s, %s, %s)
-        """, (id_pengukuran, "Sesuai Umur", "Normal", "Normal", imt_u_status, kategori_status))
+        """, (id_pengukuran, bb_u_status, tb_u_status, "TBA", "Tidak Dipakai", kategori_status))
         
         conn.commit()
-        flash('Data Pengukuran berhasil ditambahkan & Status Gizi diperbarui!', 'success')
+        flash('Data berhasil ditambahkan dengan perhitungan Z-Score standar!', 'success')
         return redirect(url_for('pengukuran'))
 
-    # 3. Render Tabel Data Pengukuran
+    # 3. Render Tabel Data
     if session['role'] == 'ortu':
         cursor.execute("""
-            SELECT p.*, a.nama_lengkap 
-            FROM pengukuran p 
-            JOIN anak a ON p.nik_anak = a.nik_anak 
-            WHERE a.username_ortu = %s
-            ORDER BY p.tanggal_pengukuran DESC
+            SELECT p.*, a.nama_lengkap FROM pengukuran p 
+            JOIN anak a ON p.nik_anak = a.nik_anak WHERE a.username_ortu = %s ORDER BY p.tanggal_pengukuran DESC
         """, (session['username'],))
     else:
-        cursor.execute("""
-            SELECT p.*, a.nama_lengkap 
-            FROM pengukuran p 
-            JOIN anak a ON p.nik_anak = a.nik_anak
-            ORDER BY p.tanggal_pengukuran DESC
-        """)
+        cursor.execute("SELECT p.*, a.nama_lengkap FROM pengukuran p JOIN anak a ON p.nik_anak = a.nik_anak ORDER BY p.tanggal_pengukuran DESC")
         
     data_pengukuran = cursor.fetchall()
-    
-    # Tarik daftar anak untuk dropdown form
     cursor.execute("SELECT nik_anak, nama_lengkap FROM anak")
     daftar_anak = cursor.fetchall()
-    
     conn.close()
     
     return render_template('ui_pengukuran.html', data_pengukuran=data_pengukuran, daftar_anak=daftar_anak, role=session['role'])
@@ -374,7 +365,6 @@ def riwayat():
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
     
-    # Tangkap input form Riwayat baru
     if request.method == 'POST' and session['role'] == 'admin':
         nik = request.form['nik_anak']
         imunisasi = request.form['riwayat_imunisasi']
@@ -407,11 +397,8 @@ def riwayat():
         """)
         
     data_riwayat = cursor.fetchall()
-    
-    # Untuk dropdown form
     cursor.execute("SELECT nik_anak, nama_lengkap FROM anak")
     daftar_anak = cursor.fetchall()
-    
     conn.close()
     return render_template('ui_riwayat.html', data_riwayat=data_riwayat, daftar_anak=daftar_anak, role=session['role'])
 
@@ -424,7 +411,6 @@ def perkembangan():
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
     
-    # Kamus Data Tugas Perkembangan dipindah ke Python agar HTML tidak crash
     ALL_TUGAS = {
         'Usia 0 - 6 Bulan': [['KP1', 'Mata melirik ke kanan dan ke kiri'], ['TS2', 'Membalas senyum pada orang lain'], ['GK3', 'Menegakkan kepala saat ditengkurapkan'], ['GK4', 'Miring sendiri / Tengkurap mandiri'], ['KA5', 'Mengeluarkan 3 suara berbeda (mengoceh)']],
         'Usia 6 - 12 Bulan': [['GH6', 'Meraih dan memegang benda di hadapannya'], ['GK7', 'Duduk sendiri tanpa dibantu'], ['GH8', 'Membuka tutup mainan/kotak'], ['TS9', 'Aktif bermain "Ciluk-ba"'], ['GH10', 'Mengambil benda dengan ibu jari dan telunjuk']],
@@ -435,7 +421,6 @@ def perkembangan():
     }
     
     try:
-        # Tangkap input form Checklist Perkembangan
         if request.method == 'POST' and session['role'] == 'admin':
             nik = request.form['nik_anak']
             tugas_list = request.form.getlist('tugas[]') 
@@ -447,7 +432,6 @@ def perkembangan():
             flash('Capaian perkembangan berhasil diperbarui!', 'success')
             return redirect(url_for('perkembangan', nik=nik))
 
-        # Ambil data filter anak
         nik_filter = request.args.get('nik', '')
         checked_tasks = []
         if nik_filter:
@@ -471,12 +455,9 @@ def perkembangan():
         conn.close()
     
     return render_template('ui_perkembangan.html', 
-                           daftar_anak=daftar_anak, 
-                           role=session['role'], 
-                           nik_terpilih=nik_filter, 
-                           checked_tasks=checked_tasks,
+                           daftar_anak=daftar_anak, role=session['role'], 
+                           nik_terpilih=nik_filter, checked_tasks=checked_tasks,
                            all_tugas=ALL_TUGAS)
 
-# Menjalankan Server
 if __name__ == '__main__':
     app.run(debug=True, ssl_context='adhoc')
