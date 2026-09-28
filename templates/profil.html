@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Profil Akun - MIKAdO</title>
+    <title>Profil Akun & Asisten AI - MIKAdO</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
     <style>
@@ -12,6 +12,7 @@
             background-size: cover; background-attachment: fixed; min-height: 100vh; padding: 40px 0;
         }
         .glass-card { background: rgba(255, 255, 255, 0.96); border-radius: 16px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); width: 100%; max-width: 650px; margin: 0 auto; overflow: hidden; }
+        .text-ungu { color: #581c87 !important; }
         .bg-ungu { background-color: #6f42c1 !important; color: white !important; }
         .btn-ungu { background-color: #581c87; color: white; border: none; font-weight: 500; }
         .btn-ungu:hover { background-color: #4c1d95; color: white; }
@@ -49,6 +50,42 @@
             margin-top: 10px;
             margin-bottom: 10px;
         }
+
+        /* Styling Chat AI ala ChatGPT/WhatsApp */
+        .chat-container {
+            height: 380px;
+            overflow-y: auto;
+            background: #f8fafc;
+            border-radius: 10px;
+            padding: 15px;
+            border: 1px solid #e2e8f0;
+            margin-top: 15px;
+        }
+        .chat-bubble {
+            max-width: 85%;
+            padding: 10px 14px;
+            border-radius: 12px;
+            margin-bottom: 10px;
+            font-size: 0.9rem;
+            line-height: 1.4;
+            white-space: pre-line;
+            word-wrap: break-word;
+        }
+        .chat-user {
+            background: #581c87;
+            color: white;
+            margin-left: auto;
+            border-bottom-right-radius: 2px;
+        }
+        .chat-ai {
+            background: #ffffff;
+            color: #1e293b;
+            margin-right: auto;
+            border-bottom-left-radius: 2px;
+            border: 1px solid #cbd5e1;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+        }
+        .typing-indicator { font-style: italic; color: #64748b; font-size: 0.85rem; }
     </style>
 </head>
 <body>
@@ -60,7 +97,7 @@
                     <i class="bi bi-person-fill"></i>
                 </div>
                 <h4 class="fw-bold mb-1">@{{ username }}</h4>
-                <p class="mb-0 small text-white-50">Pengaturan Akun & Keamanan Sistem MIKAdO</p>
+                <p class="mb-0 small text-white-50">Pengaturan Akun & Asisten AI MIKAdO</p>
             </div>
 
             <!-- FLASH MESSAGES -->
@@ -68,7 +105,7 @@
                 {% with messages = get_flashed_messages(with_categories=true) %}
                   {% if messages %}
                     {% for category, message in messages %}
-                      <div class="alert alert-{{ category }} text-center fw-bold mb-3">{{ message }}</div>
+                      <div class="alert alert-{{ category }} text-center fw-bold mb-3 shadow-sm">{{ message }}</div>
                     {% endfor %}
                   {% endif %}
                 {% endwith %}
@@ -94,7 +131,7 @@
                         </div>
                     </div>
                     <div class="collapse px-4 pb-3" id="panelInfo">
-                        <div class="panel-collapse-box">
+                        <div class="panel-collapse-box shadow-sm">
                             <p class="mb-1"><strong>Username:</strong> {{ username }}</p>
                             <p class="mb-0"><strong>Status Hak Akses:</strong> Aktif & Terverifikasi</p>
                         </div>
@@ -115,8 +152,8 @@
                             <i class="bi bi-chevron-down text-muted"></i>
                         </div>
                     </div>
-                    <div class="collapse show px-4 pb-3 pt-2" id="panelUbahAkun">
-                        <div class="panel-collapse-box">
+                    <div class="collapse px-4 pb-3 pt-2" id="panelUbahAkun">
+                        <div class="panel-collapse-box shadow-sm">
                             <form method="POST" action="{{ url_for('profil') }}">
                                 <div class="mb-3">
                                     <label class="form-label fw-bold text-secondary">Username Baru</label>
@@ -151,25 +188,69 @@
                         </div>
                     </div>
 
-                    <!-- MENU 3: BANTUAN & TENTANG APLIKASI -->
+                    <!-- MENU 3: BANTUAN & ASISTEN AI -->
                     <div class="list-group-item" data-bs-toggle="collapse" data-bs-target="#panelBantuan" aria-expanded="false">
                         <div class="d-flex align-items-center justify-content-between">
                             <div class="d-flex align-items-center gap-3">
-                                <div class="settings-icon">
-                                    <i class="bi bi-question-circle-fill"></i>
+                                <div class="settings-icon position-relative">
+                                    <i class="bi bi-robot"></i>
+                                    <span class="position-absolute top-0 start-100 translate-middle p-1 bg-success border border-light rounded-circle" title="AI Online"></span>
                                 </div>
                                 <div>
-                                    <h6 class="mb-0 fw-bold text-dark">Bantuan & Informasi</h6>
-                                    <small class="text-muted">Tentang sistem MIKAdO</small>
+                                    <h6 class="mb-0 fw-bold text-dark">Bantuan & Asisten AI</h6>
+                                    <small class="text-muted">Konsultasi anak & solusi sistem</small>
                                 </div>
                             </div>
                             <i class="bi bi-chevron-down text-muted"></i>
                         </div>
                     </div>
                     <div class="collapse px-4 pb-3" id="panelBantuan">
-                        <div class="panel-collapse-box">
-                            <p class="mb-1 fw-bold">MIKAdO (Monitoring Kesehatan Anak Online)</p>
-                            <p class="mb-0 small text-muted">Sistem terpusat pencatatan KMS, gizi, dan tumbuh kembang anak.</p>
+                        <div style="background-color: transparent; border: none; padding: 0; margin-top: 15px;">
+                            
+                            <!-- Keterangan Aplikasi Singkat -->
+                            <div class="p-3 bg-light rounded border shadow-sm mb-3">
+                                <p class="mb-1 fw-bold text-ungu"><i class="bi bi-info-circle-fill"></i> MIKAdO (Monitoring Kesehatan Anak Online)</p>
+                                <p class="mb-0 small text-muted">Sistem terpusat pencatatan KMS, gizi, dan tumbuh kembang anak.</p>
+                            </div>
+                            
+                            <hr class="text-muted">
+                            
+                            <div class="d-flex align-items-center justify-content-between mb-2 mt-3">
+                                <h6 class="fw-bold text-ungu mb-0"><i class="bi bi-robot"></i> Chat Asisten AI MIKAdO</h6>
+                                <span class="badge bg-success shadow-sm">Online</span>
+                            </div>
+                            
+                            <!-- KOTAK CHAT INTERAKTIF -->
+                            <div class="chat-container mb-3 shadow-sm" id="chatBox">
+                                <div class="chat-bubble chat-ai">
+                                    <b>🤖 Asisten AI:</b><br>
+                                    Halo Ayah/Bunda! 👋 Saya asisten virtual cerdas MIKAdO. Silakan tanyakan apa saja seputar kesehatan anak, gizi, stunting, imunisasi, maupun kendala saat menggunakan aplikasi ini! 😊
+                                </div>
+                            </div>
+
+                            <!-- FORM INPUT CHAT -->
+                            <form id="chatForm" onsubmit="kirimPesanAI(event)" class="mb-4">
+                                <div class="input-group shadow-sm">
+                                    <input type="text" id="userInput" class="form-control border-secondary" placeholder="Ketik pertanyaan (misal: solusi anak susah makan)..." autocomplete="off" required>
+                                    <button class="btn btn-ungu px-4 fw-bold" type="submit">
+                                        <i class="bi bi-send-fill"></i>
+                                    </button>
+                                </div>
+                            </form>
+
+                            <!-- TOMBOL ESKALASI KE TIM PENGEMBANG -->
+                            <div class="bg-white p-3 rounded border shadow-sm text-center">
+                                <p class="small text-muted mb-2 fw-bold">Perlu bantuan teknis langsung dari manusia?</p>
+                                <div class="d-flex justify-content-center gap-2 flex-wrap">
+                                    <a href="https://wa.me/6281234567890?text=Halo%20Tim%20Support%20MIKAdO,%20saya%20membutuhkan%20bantuan%20terkait%20kendala%20sistem." target="_blank" class="btn btn-success btn-sm fw-bold">
+                                        <i class="bi bi-whatsapp"></i> Hubungi WhatsApp
+                                    </a>
+                                    <a href="mailto:support@mikado.sehat?subject=Kendala%20Sistem%20MIKAdO" class="btn btn-outline-dark btn-sm fw-bold">
+                                        <i class="bi bi-envelope-fill"></i> Kirim Email
+                                    </a>
+                                </div>
+                            </div>
+
                         </div>
                     </div>
 
@@ -194,9 +275,10 @@
         </div>
     </div>
 
-    <!-- SCRIPT BOOTSTRAP & SHOW/HIDE PASSWORD -->
+    <!-- SCRIPT BOOTSTRAP, SHOW/HIDE PASSWORD, & CHAT AI -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
+        // Fungsi Toggle Password Lama
         function togglePassword(fieldId, iconId) {
             const passwordField = document.getElementById(fieldId);
             const icon = document.getElementById(iconId);
@@ -210,6 +292,47 @@
                 icon.classList.remove("bi-eye");
                 icon.classList.add("bi-eye-slash");
             }
+        }
+
+        // Fungsi Chat AI MIKAdO
+        function kirimPesanAI(event) {
+            event.preventDefault();
+            let inputField = document.getElementById('userInput');
+            let chatBox = document.getElementById('chatBox');
+            let pesanUser = inputField.value.trim();
+            if (!pesanUser) return;
+
+            // Tambahkan bubble chat dari User
+            chatBox.innerHTML += `<div class="chat-bubble chat-user"><b>Anda:</b><br>${pesanUser}</div>`;
+            inputField.value = '';
+            chatBox.scrollTop = chatBox.scrollHeight;
+
+            // Tambahkan indikator "sedang mengetik"
+            let loadingId = 'loading_' + Date.now();
+            chatBox.innerHTML += `<div id="${loadingId}" class="chat-bubble chat-ai typing-indicator">🤖 Asisten AI sedang mengetik...</div>`;
+            chatBox.scrollTop = chatBox.scrollHeight;
+
+            // Kirim request ke API Flask
+            fetch('/api/ai_chat', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ message: pesanUser })
+            })
+            .then(res => res.json())
+            .then(data => {
+                document.getElementById(loadingId).remove();
+                if (data.status === 'success') {
+                    chatBox.innerHTML += `<div class="chat-bubble chat-ai"><b>🤖 Asisten AI:</b><br>${data.reply}</div>`;
+                } else {
+                    chatBox.innerHTML += `<div class="chat-bubble chat-ai text-danger"><b>🤖 Asisten AI:</b><br>Gagal memproses pesan. Pastikan koneksi stabil.</div>`;
+                }
+                chatBox.scrollTop = chatBox.scrollHeight;
+            })
+            .catch(err => {
+                document.getElementById(loadingId).remove();
+                chatBox.innerHTML += `<div class="chat-bubble chat-ai text-danger"><b>🤖 Asisten AI:</b><br>Koneksi ke server AI terputus. Silakan coba lagi nanti.</div>`;
+                chatBox.scrollTop = chatBox.scrollHeight;
+            });
         }
     </script>
 </body>
