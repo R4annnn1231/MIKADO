@@ -137,13 +137,98 @@
                                                 <div class="col-md-5 mb-3 mb-md-0">
                                                     <h6 class="fw-bold text-ungu border-bottom pb-2">Bahan-bahan:</h6>
                                                     <p class="mb-0" style="white-space: pre-line; font-size: 0.95rem;">
-                                                        {{ resep.bahan or resep.bahan_bahan or resep.komposisi or '- 3 sendok makan oatmeal instan/halus\n- 50 gram buah naga merah matang\n- 100 ml air matang, ASI, atau susu UHT\n- 1 sendok teh mentega tawar (unsalted butter)' }}
+                                                        {% set db_bahan = resep.bahan or resep.bahan_bahan or resep.komposisi or '' %}
+                                                        {% if db_bahan and db_bahan != '-' and db_bahan|trim != '' %}
+                                                            {{ db_bahan }}
+                                                        {% else %}
+                                                            {# PENCocokan spesifik berdasarkan nama menu agar variatif dan akurat #}
+                                                            {% set nama = (resep.nama_menu or '')|lower %}
+                                                            {% if 'oatmeal' in nama %}
+                                                                - 3 sendok makan oatmeal instan/halus
+                                                                - 50 gram buah naga merah matang
+                                                                - 100 ml air matang, ASI, atau susu UHT
+                                                                - 1 sendok teh mentega tawar (unsalted butter)
+                                                            {% elif 'nasi tim' in nama or 'tim' in nama %}
+                                                                - 3 sendok makan nasi putih berkualitas
+                                                                - 30 gram daging ayam giling / daging sapi cincang halus
+                                                                - 20 gram tahu putih atau wortel (parut halus)
+                                                                - 200 ml kaldu ayam alami tanpa MSG
+                                                                - 1 siung bawang putih (cincang halus)
+                                                            {% elif 'bubur' in nama %}
+                                                                - 3 sendok makan beras putih/merah
+                                                                - 40 gram ikan dori atau ikan kembung fillet (cincang halus)
+                                                                - 1 lembar daun salam & sepotong serai
+                                                                - 250 ml kaldu ikan/ayam rumahan
+                                                                - Bawang putih & merah secukupnya
+                                                            {% elif 'sup' in nama %}
+                                                                - 40 gram daging ayam suwir atau bola-bola daging lembut
+                                                                - 30 gram wortel & kentang (potong dadu kecil)
+                                                                - 200 ml kaldu sayur/ayam segar
+                                                                - Seledri & bawang putih (memarkan)
+                                                            {% elif 'nugget' in nama or 'bola' in nama %}
+                                                                - 50 gram daging ayam giling
+                                                                - 1 butir telur ayam (ambil putihnya atau utuh dikocok)
+                                                                - 2 sendok makan tepung roti/panir
+                                                                - 1 siung bawang putih halus & sedikit garam secukupnya
+                                                            {% elif 'pudding' in nama or 'puding' in nama or 'snack' in nama %}
+                                                                - 3 sendok makan tepung maizena atau agar-agar plain
+                                                                - 150 ml susu UHT atau santan encer
+                                                                - 30 gram buah pisang/alpukat (haluskan sebagai topping)
+                                                            {% else %}
+                                                                - 40 gram protein hewani segar (ayam/ikan/telur)
+                                                                - 3 sendok makan karbohidrat (nasi/kentang/ubi kukus)
+                                                                - 20 gram sayuran hijau/merah (bayam/wortel)
+                                                                - Kaldu alami dan 1 sdt mentega tawar
+                                                            {% endif %}
+                                                        {% endif %}
                                                     </p>
                                                 </div>
                                                 <div class="col-md-7">
                                                     <h6 class="fw-bold text-ungu border-bottom pb-2">Cara Membuat:</h6>
                                                     <p class="mb-0" style="white-space: pre-line; font-size: 0.95rem;">
-                                                        {{ resep.cara_membuat or resep.langkah_pembuatan or resep.instruksi or '1. Masak oatmeal bersama air atau susu dengan api kecil sambil diaduk perlahan hingga teksturnya lunak, mengental, dan matang.\n2. Tambahkan sedikit mentega tawar untuk menambah energi sehat, lalu aduk rata dan angkat.\n3. Kerok daging buah naga, lalu haluskan menggunakan garpu atau saringan kawat.\n4. Campurkan buah naga ke dalam bubur oatmeal yang sudah hangat, aduk merata dan hidangkan untuk si kecil.' }}
+                                                        {% set db_cara = resep.cara_membuat or resep.langkah_pembuatan or resep.instruksi or '' %}
+                                                        {% if db_cara and db_cara != '-' and db_cara|trim != '' %}
+                                                            {{ db_cara }}
+                                                        {% else %}
+                                                            {# PENCocokan langkah spesifik berdasarkan nama menu #}
+                                                            {% set nama = (resep.nama_menu or '')|lower %}
+                                                            {% if 'oatmeal' in nama %}
+                                                                1. Masak oatmeal bersama air atau susu dengan api kecil sambil diaduk perlahan hingga teksturnya lunak, mengental, dan matang.
+                                                                2. Tambahkan sedikit mentega tawar untuk menambah energi sehat, aduk rata lalu angkat.
+                                                                3. Kerok daging buah naga, haluskan menggunakan garpu atau saringan kawat.
+                                                                4. Campurkan buah naga ke dalam bubur oatmeal yang sudah hangat, aduk merata dan hidangkan untuk si kecil.
+                                                            {% elif 'nasi tim' in nama or 'tim' in nama %}
+                                                                1. Tumis sebentar bawang putih cincang dengan sedikit mentega tawar hingga harum.
+                                                                2. Masukkan daging ayam giling, aduk hingga berubah warna, lalu tambahkan nasi putih dan sayuran parut.
+                                                                3. Tuangkan kaldu ayam, masak dengan api kecil sambil diaduk sesekali hingga air menyusut dan teksturnya empuk/lembut.
+                                                                4. Saring jika diperlukan atau sajikan langsung selagi hangat.
+                                                            {% elif 'bubur' in nama %}
+                                                                1. Rebus beras bersama kaldu, daun salam, dan bawang putih hingga menjadi bubur yang empuk sempurna.
+                                                                2. Masukkan ikan fillet cincang halus, aduk cepat hingga ikan matang dan tercampur rata.
+                                                                3. Saring bubur jika anak masih dalam tahap tekstur halus, atau biarkan agak kasar sesuai usia.
+                                                                4. Dinginkan hingga hangat kuku sebelum diberikan kepada anak.
+                                                            {% elif 'sup' in nama %}
+                                                                1. Didihkan kaldu ayam/sayur bersama bawang putih yang telah digeprek.
+                                                                2. Masukkan potongan wortel dan kentang terlebih dahulu hingga empuk.
+                                                                3. Masukkan daging ayam suwir atau bola daging, masak hingga matang dan kuah harum.
+                                                                4. Taburkan seledri cincang sebelum diangkat dan disajikan.
+                                                            {% elif 'nugget' in nama or 'bola' in nama %}
+                                                                1. Campurkan daging ayam giling, telur, dan bawang putih halus dalam wadah hingga tercampur rata.
+                                                                2. Bentuk adonan menjadi bola-bola kecil atau bentuk nugget sesuai selera anak.
+                                                                3. Kukus adonan selama 15 menit agar matang dan padat, lalu gulingkan ke tepung roti.
+                                                                4. Panggang sebentar atau goreng dengan sedikit minyak hingga keemasan, tiriskan dan sajikan.
+                                                            {% elif 'pudding' in nama or 'puding' in nama or 'snack' in nama %}
+                                                                1. Campurkan agar-agar/maizena dengan susu atau santan ke dalam panci kecil, aduk rata.
+                                                                2. Masak dengan api sedang sambil terus diaduk perlahan hingga mendidih dan mengental.
+                                                                3. Tuang ke dalam cetakan kecil, biarkan dingin di suhu ruang lalu masukkan kulkas sebentar.
+                                                                4. Sajikan dingin sebagai selingan sehat yang menyegarkan.
+                                                            {% else %}
+                                                                1. Siapkan seluruh bahan makanan segar (protein, karbohidrat, dan sayuran).
+                                                                2. Rebus atau kukus bahan makanan hingga benar-benar empuk agar mudah dicerna sistem pencernaan anak.
+                                                                3. Haluskan atau cincang sesuai kemampuan mengunyah si kecil saat ini.
+                                                                4. Campurkan dengan kuah kaldu sehat, aduk rata, dan sajikan hangat.
+                                                            {% endif %}
+                                                        {% endif %}
                                                     </p>
                                                 </div>
                                             </div>
