@@ -739,7 +739,8 @@ def perkembangan():
         'Usia 1 - 2 Tahun': [['GK12', 'Berjalan sendiri tanpa berpegangan'], ['MD14', 'Minum dari gelas sendiri tanpa tumpah'], ['KA16', 'Menyebut 2 kata berbeda dengan benar']],
         'Usia 2 - 3 Tahun': [['GK24', 'Berlari tanpa sering jatuh'], ['GH26', 'Mencoret-coret dengan alat tulis'], ['KA28', 'Merangkai kalimat tanya atau sangkal'], ['MD31', 'Membuka baju dan melepas celana sendiri']],
         'Usia 3 - 4 Tahun': [['GK34', 'Berdiri dengan satu kaki tanpa berpegangan'], ['GH36', 'Menggambar garis lurus atau lingkaran'], ['KC38', 'Mengenal dan menyebutkan minimal 1 warna'], ['TS40', 'Mulai bermain bersama teman sebaya']],
-        'Usia 4 - 5 Tahun': [['GK42', 'Melompat dengan satu kaki'], ['GH45', 'Menggambar orang dengan minimal 3 bagian tubuh'], ['KA47', 'Menceritakan kejadian sehari-hari dengan lancar'], ['MD50', 'Mencuci dan mengeringkan tangan sendiri']]
+        'Usia 4 - 5 Tahun': [['GK42', 'Melompat dengan satu kaki'], ['GH45', 'Menggambar orang dengan minimal 3 bagian tubuh'], ['KA47', 'Menceritakan kejadian sehari-hari dengan lancar'], ['MD50', 'Mencuci dan mengeringkan tangan sendiri']],
+        'Usia 5 - 6 Tahun': [['GK51', 'Berjalan lurus berganti kaki tanpa jatuh'], ['GH53', 'Menggunting kertas mengikuti pola garis'], ['KA56', 'Menghafal sajak atau bernyanyi lagu anak'], ['TS58', 'Mentaati aturan permainan kelompok/berbagi']]
     }
     
     try:
