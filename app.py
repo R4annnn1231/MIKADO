@@ -2,6 +2,16 @@ from flask import Flask, render_template, request, redirect, url_for, session, f
 from werkzeug.security import generate_password_hash, check_password_hash
 import mysql.connector
 import traceback
+import os
+from dotenv import load_dotenv
+from google import genai
+from google.genai import types
+
+# Memuat variabel dari file .env secara otomatis (jika dijalankan lokal)
+load_dotenv()
+
+# Inisialisasi client Gemini menggunakan environment variable yang aman
+client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
 
 app = Flask(__name__)
 app.secret_key = 'mikado_rahasia_aman_123'
@@ -780,7 +790,7 @@ def riwayat():
     cari = request.args.get('cari')
     if session['role'] == 'ortu':
         cursor.execute("""
-            SELECT r., 
+            SELECT r.*, 
                    r.riwayat_imunisasi AS imunisasi, 
                    r.riwayat_penyakit_alergi AS catatan_penyakit,
                    CURRENT_DATE() AS tanggal_catat,
@@ -795,7 +805,7 @@ def riwayat():
     else:
         if cari:
             cursor.execute("""
-                SELECT r., 
+                SELECT r.*, 
                        r.riwayat_imunisasi AS imunisasi, 
                        r.riwayat_penyakit_alergi AS catatan_penyakit,
                        CURRENT_DATE() AS tanggal_catat,
@@ -930,6 +940,53 @@ def api_rekam_medis_anak(nik):
             'kesehatan_terakhir': riwayat_kesehatan,
             'grafik_pertumbuhan': riwayat_pertumbuhan
         }
+    })
+
+# ==========================================
+# 6. API ASISTEN AI MIKAdO (Google AI Studio)
+# ==========================================
+@app.route('/api/ai_chat', methods=['POST'])
+def api_ai_chat():
+    if 'role' not in session:
+        return jsonify({'status': 'error', 'message': 'Unauthorized'}), 401
+        
+    data = request.get_json()
+    user_msg = data.get('message', '')
+    
+    if not user_msg.strip():
+        return jsonify({'status': 'error', 'message': 'Pesan kosong'}), 400
+
+    try:
+        response = client.models.generate_content(
+            model='gemini-2.5-flash',
+            contents=user_msg,
+            config=types.GenerateContentConfig(
+                system_instruction=(
+                    "Anda adalah 'Asisten AI MIKAdO', kecerdasan buatan medis dan teknis yang ramah, "
+                    "empatik, dan profesional untuk platform MIKAdO (Monitoring Kesehatan Anak Online). "
+                    "Tugas Anda adalah: "
+                    "1. Menjawab secara universal, mendalam, dan solutif mengenai pertumbuhan dan perkembangan anak, "
+                    "gizi, pencegahan stunting, imunisasi, milestone motorik/bahasa, dan kesehatan anak balita. "
+                    "2. Memberikan panduan teknis penggunaan fitur di aplikasi MIKAdO (menu Pengukuran/KMS, "
+                    "Rekomendasi Gizi, Riwayat Kesehatan, Perkembangan, dan Profil). "
+                    "3. Gunakan sapaan yang hangat dan akrab seperti 'Ayah/Bunda'. "
+                    "4. Jika pengguna mengalami kendala teknis sistem yang berat atau bug, arahkan mereka untuk menghubungi "
+                    "Tim Support melalui tombol WhatsApp atau Email yang tersedia di halaman bantuan."
+                ),
+                temperature=0.7,
+            ),
+        )
+        reply = response.text
+    except Exception as e:
+        reply = (
+            "Halo Ayah/Bunda! 👋 Saat ini Asisten AI sedang mengalami kendala koneksi sistem. "
+            "Jika ada hal mendesak seputar tumbuh kembang si kecil, silakan gunakan tombol "
+            "**WhatsApp / Email Tim Support** di bawah untuk terhubung langsung dengan Tim Pengembang MIKAdO."
+        )
+
+    return jsonify({
+        'status': 'success',
+        'reply': reply
     })
 
 if __name__ == '__main__':
