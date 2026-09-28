@@ -120,7 +120,6 @@ def register():
             conn.close()
             return redirect(url_for('register'))
 
-        # Otomatis generate No KMS 6 digit berurutan
         no_kms = generate_no_kms(cursor)
         hashed_password = generate_password_hash(password)
         
@@ -255,7 +254,6 @@ def identitas():
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
     
-    # Tambah Anak Manual oleh Admin via Modal Identitas
     if request.method == 'POST' and session['role'] == 'admin':
         nik_anak = request.form.get('nik_anak')
         nama_anak = request.form.get('nama_anak')
@@ -386,12 +384,30 @@ def pengukuran():
         else:
             tb_u_status = 'Tinggi Normal'
             
+        # Perhitungan dinamis BB/TB dan IMT/U agar akurat
+        tb_m = tb / 100.0
+        imt = bb / (tb_m ** 2) if tb_m > 0 else 0
+        if imt < 14.0:
+            imt_u_status = 'Gizi Kurang'
+        elif imt > 19.0:
+            imt_u_status = 'Risiko Lebih'
+        else:
+            imt_u_status = 'Normal'
+
+        rasio_bb_tb = bb / tb if tb > 0 else 0
+        if rasio_bb_tb < 0.1:
+            bb_tb_status = 'Gizi Kurang'
+        elif rasio_bb_tb > 0.18:
+            bb_tb_status = 'Risiko Lebih'
+        else:
+            bb_tb_status = 'Normal'
+
         kategori_status = f"{bb_u_status} | {tb_u_status} | Tren: {tren_status}"
             
         cursor.execute("""
             INSERT INTO status_gizi (id_pengukuran, bb_u, tb_u, bb_tb, imt_u, kategori_status)
             VALUES (%s, %s, %s, %s, %s, %s)
-        """, (id_pengukuran, bb_u_status, tb_u_status, "TBA", "Tidak Dipakai", kategori_status))
+        """, (id_pengukuran, bb_u_status, tb_u_status, bb_tb_status, imt_u_status, kategori_status))
         
         conn.commit()
         flash('Data pengukuran berhasil ditambahkan!', 'success')
@@ -499,13 +515,30 @@ def edit_pengukuran(id_pengukuran):
         else:
             tb_u_status = 'Tinggi Normal'
             
+        tb_m = tb / 100.0
+        imt = bb / (tb_m ** 2) if tb_m > 0 else 0
+        if imt < 14.0:
+            imt_u_status = 'Gizi Kurang'
+        elif imt > 19.0:
+            imt_u_status = 'Risiko Lebih'
+        else:
+            imt_u_status = 'Normal'
+
+        rasio_bb_tb = bb / tb if tb > 0 else 0
+        if rasio_bb_tb < 0.1:
+            bb_tb_status = 'Gizi Kurang'
+        elif rasio_bb_tb > 0.18:
+            bb_tb_status = 'Risiko Lebih'
+        else:
+            bb_tb_status = 'Normal'
+
         kategori_status = f"{bb_u_status} | {tb_u_status} | Tren: {tren_status}"
 
         cursor.execute("""
             UPDATE status_gizi 
-            SET bb_u=%s, tb_u=%s, kategori_status=%s 
+            SET bb_u=%s, tb_u=%s, bb_tb=%s, imt_u=%s, kategori_status=%s 
             WHERE id_pengukuran=%s
-        """, (bb_u_status, tb_u_status, kategori_status, id_pengukuran))
+        """, (bb_u_status, tb_u_status, bb_tb_status, imt_u_status, kategori_status, id_pengukuran))
 
         conn.commit()
         flash('Data pengukuran berhasil diperbarui!', 'success')
@@ -584,18 +617,21 @@ def gizi():
 
     for item in data_gizi:
         bb_u = item.get('bb_u') or ''
+        kategori_db = item.get('kategori_status') or ''
         usia = float(item.get('usia_bulan') or 0)
 
-        if 'Kurang' in bb_u or 'Buruk' in bb_u:
-            target_status = 'Gizi Kurang'
-        elif 'Lebih' in bb_u or 'Obesitas' in bb_u:
-            target_status = 'Risiko Gizi Lebih'
+        # Pencocokan fleksibel agar resep selalu ditemukan tanpa pesan kosong
+        if 'Kurang' in bb_u or 'Buruk' in bb_u or 'Kurang' in kategori_db:
+            target_keywords = ['Gizi Kurang', 'Gizi Buruk', 'Kurang']
+        elif 'Lebih' in bb_u or 'Obesitas' in bb_u or 'Risiko' in bb_u or 'Lebih' in kategori_db:
+            target_keywords = ['Risiko Gizi Lebih', 'Risiko Lebih', 'Lebih', 'Obesitas']
         else:
-            target_status = 'Normal'
+            target_keywords = ['Normal', 'Berat Normal', 'Gizi Baik']
 
         rekomendasi_terpilih = []
         for resep in semua_resep:
-            if resep['kategori_status'] == target_status and resep['usia_min_bulan'] <= usia <= resep['usia_max_bulan']:
+            kat_resep = str(resep.get('kategori_status', ''))
+            if any(kw.lower() in kat_resep.lower() for kw in target_keywords) and resep['usia_min_bulan'] <= usia <= resep['usia_max_bulan']:
                 rekomendasi_terpilih.append(resep)
 
         item['rekomendasi'] = rekomendasi_terpilih
