@@ -243,8 +243,55 @@ def edit_anak(nik):
     return render_template('edit_anak.html', data=data)
 
 # ==========================================
-# 4. RUTE 5 MENU UTAMA MIKAdO
+# 4. RUTE MENU UTAMA & PUSAT AUDIT
 # ==========================================
+
+@app.route('/audit', methods=['GET', 'POST'])
+def audit():
+    if 'role' not in session:
+        return redirect(url_for('login'))
+        
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    
+    if session['role'] == 'ortu':
+        cursor.execute("SELECT nik_anak, nama_lengkap, no_register_kms FROM anak WHERE username_ortu = %s", (session['username'],))
+    else:
+        cursor.execute("SELECT nik_anak, nama_lengkap, no_register_kms FROM anak")
+    daftar_anak = cursor.fetchall()
+    
+    data_audit = None
+    nik_terpilih = request.args.get('nik') or (request.form.get('nik') if request.method == 'POST' else None)
+    
+    if nik_terpilih:
+        cursor.execute("SELECT * FROM anak WHERE nik_anak = %s", (nik_terpilih,))
+        anak = cursor.fetchone()
+        
+        if anak:
+            cursor.execute("""
+                SELECT p.*, s.bb_u, s.tb_u, s.bb_tb, s.imt_u, s.kategori_status 
+                FROM pengukuran p 
+                LEFT JOIN status_gizi s ON p.id_pengukuran = s.id_pengukuran 
+                WHERE p.nik_anak = %s 
+                ORDER BY p.usia_bulan DESC
+            """, (nik_terpilih,))
+            riwayat_pengukuran = cursor.fetchall()
+            
+            cursor.execute("SELECT * FROM riwayat_kesehatan WHERE nik_anak = %s ORDER BY id_riwayat DESC", (nik_terpilih,))
+            riwayat_kesehatan = cursor.fetchall()
+            
+            cursor.execute("SELECT kode_tugas FROM pencapaian_perkembangan WHERE nik_anak = %s", (nik_terpilih,))
+            perkembangan = [row['kode_tugas'] for row in cursor.fetchall()]
+            
+            data_audit = {
+                'anak': anak,
+                'pengukuran': riwayat_pengukuran,
+                'kesehatan': riwayat_kesehatan,
+                'perkembangan': perkembangan
+            }
+            
+    conn.close()
+    return render_template('ui_audit.html', daftar_anak=daftar_anak, data_audit=data_audit, nik_terpilih=nik_terpilih, role=session['role'])
 
 @app.route('/identitas', methods=['GET', 'POST'])
 def identitas():
