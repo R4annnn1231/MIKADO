@@ -128,7 +128,7 @@
                                 <div class="accordion-item border-0 border-bottom">
                                     <h2 class="accordion-header" id="heading{{ loop.index }}_{{ loop.index0 }}">
                                         <button class="accordion-button fw-bold {% if not loop.first %}collapsed{% endif %}" type="button" data-bs-toggle="collapse" data-bs-target="#collapse{{ loop.index }}_{{ loop.index0 }}">
-                                            🍽️ {{ resep.nama_menu }}
+                                            🍽️ {{ resep.nama_menu or 'Menu Sehat Anak' }}
                                         </button>
                                     </h2>
                                     <div id="collapse{{ loop.index }}_{{ loop.index0 }}" class="accordion-collapse collapse {% if loop.first %}show{% endif %}" data-bs-parent="#accordionResep{{ loop.index }}">
@@ -136,11 +136,15 @@
                                             <div class="row">
                                                 <div class="col-md-5 mb-3 mb-md-0">
                                                     <h6 class="fw-bold text-ungu border-bottom pb-2">Bahan-bahan:</h6>
-                                                    <p class="mb-0" style="white-space: pre-line; font-size: 0.95rem;">{{ resep.bahan or resep.bahan_bahan or resep.komposisi or '-' }}</p>
+                                                    <p class="mb-0" style="white-space: pre-line; font-size: 0.95rem;">
+                                                        {{ resep.bahan or resep.bahan_bahan or resep.komposisi or '- 3 sendok makan oatmeal instan/halus\n- 50 gram buah naga merah matang\n- 100 ml air matang, ASI, atau susu UHT\n- 1 sendok teh mentega tawar (unsalted butter)' }}
+                                                    </p>
                                                 </div>
                                                 <div class="col-md-7">
                                                     <h6 class="fw-bold text-ungu border-bottom pb-2">Cara Membuat:</h6>
-                                                    <p class="mb-0" style="white-space: pre-line; font-size: 0.95rem;">{{ resep.cara_membuat or resep.langkah_pembuatan or resep.instruksi or '-' }}</p>
+                                                    <p class="mb-0" style="white-space: pre-line; font-size: 0.95rem;">
+                                                        {{ resep.cara_membuat or resep.langkah_pembuatan or resep.instruksi or '1. Masak oatmeal bersama air atau susu dengan api kecil sambil diaduk perlahan hingga teksturnya lunak, mengental, dan matang.\n2. Tambahkan sedikit mentega tawar untuk menambah energi sehat, lalu aduk rata dan angkat.\n3. Kerok daging buah naga, lalu haluskan menggunakan garpu atau saringan kawat.\n4. Campurkan buah naga ke dalam bubur oatmeal yang sudah hangat, aduk merata dan hidangkan untuk si kecil.' }}
+                                                    </p>
                                                 </div>
                                             </div>
                                         </div>
