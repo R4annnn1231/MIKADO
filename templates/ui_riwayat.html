@@ -23,19 +23,34 @@
         .btn-ungu { background-color: #581c87; color: white; border: none; font-weight: 500; }
         .btn-ungu:hover { background-color: #4c1d95; color: white; }
         .badge-imunisasi { background-color: #17a2b8; font-weight: normal; margin-right: 3px; margin-bottom: 3px; display: inline-block;}
+        
+        .kop-surat { display: none; }
 
         @media print {
-            body { background: white !important; padding: 0 !important; }
-            .btn, .d-print-none, form, .modal { display: none !important; }
+            @page { size: A4 portrait; margin: 15mm; }
+            body { background: white !important; padding: 0 !important; color: black; }
+            .btn, .d-print-none, form, .modal, .alert { display: none !important; }
             .card { border: none !important; box-shadow: none !important; margin-bottom: 20px !important;}
             .bg-ungu { background-color: #6f42c1 !important; color: white !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-            table { font-size: 12px; }
+            table { font-size: 12px; width: 100%; border-collapse: collapse; }
+            th, td { border: 1px solid #000 !important; }
+            .badge-imunisasi { border: 1px solid #000; color: #000 !important; background: transparent !important; }
+            .kop-surat { display: block !important; }
         }
     </style>
 </head>
 <body>
     <div class="container py-5">
-        <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+        
+        <!-- KOP SURAT KHUSUS CETAK -->
+        <div class="kop-surat text-center border-bottom border-dark border-3 pb-3 mb-4">
+            <h3 class="fw-bold mb-1 text-dark">PUSAT LAYANAN KESEHATAN MIKAdO</h3>
+            <p class="mb-0 text-dark">Jl. Kesehatan Anak No. 123, Kota Sejahtera, Provinsi Bahagia</p>
+            <p class="mb-0 small text-dark">Email: info@mikado.sehat | Telp: (021) 12345678</p>
+            <h4 class="fw-bold mt-3 text-dark text-decoration-underline">LAPORAN RIWAYAT KESEHATAN & IMUNISASI ANAK</h4>
+        </div>
+
+        <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2 d-print-none">
             <div>
                 <h2 class="text-white fw-bold mb-0">Riwayat Kesehatan Anak</h2>
                 <p class="text-white-50 mb-0">Pemantauan Imunisasi, Vitamin A, dan Alergi</p>
