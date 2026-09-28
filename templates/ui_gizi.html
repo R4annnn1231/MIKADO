@@ -136,11 +136,11 @@
                                             <div class="row">
                                                 <div class="col-md-5 mb-3 mb-md-0">
                                                     <h6 class="fw-bold text-ungu border-bottom pb-2">Bahan-bahan:</h6>
-                                                    <p class="mb-0" style="white-space: pre-line; font-size: 0.95rem;">{{ resep.bahan }}</p>
+                                                    <p class="mb-0" style="white-space: pre-line; font-size: 0.95rem;">{{ resep.bahan or resep.bahan_bahan or resep.komposisi or '-' }}</p>
                                                 </div>
                                                 <div class="col-md-7">
                                                     <h6 class="fw-bold text-ungu border-bottom pb-2">Cara Membuat:</h6>
-                                                    <p class="mb-0" style="white-space: pre-line; font-size: 0.95rem;">{{ resep.cara_membuat }}</p>
+                                                    <p class="mb-0" style="white-space: pre-line; font-size: 0.95rem;">{{ resep.cara_membuat or resep.langkah_pembuatan or resep.instruksi or '-' }}</p>
                                                 </div>
                                             </div>
                                         </div>
