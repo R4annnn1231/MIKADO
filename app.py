@@ -384,7 +384,6 @@ def pengukuran():
         else:
             tb_u_status = 'Tinggi Normal'
             
-        # Perhitungan dinamis BB/TB dan IMT/U agar akurat
         tb_m = tb / 100.0
         imt = bb / (tb_m ** 2) if tb_m > 0 else 0
         if imt < 14.0:
@@ -585,10 +584,15 @@ def gizi():
     
     if session['role'] == 'ortu':
         query = """
-            SELECT a.nama_lengkap, p.usia_bulan, s.bb_u, s.tb_u, s.bb_tb, s.imt_u, s.kategori_status 
-            FROM status_gizi s
-            JOIN pengukuran p ON s.id_pengukuran = p.id_pengukuran
-            JOIN anak a ON p.nik_anak = a.nik_anak
+            SELECT a.nama_lengkap, p.usia_bulan, 
+                   COALESCE(s.bb_u, 'Belum Dihitung') AS bb_u, 
+                   COALESCE(s.tb_u, 'Belum Dihitung') AS tb_u, 
+                   COALESCE(s.bb_tb, '-') AS bb_tb, 
+                   COALESCE(s.imt_u, '-') AS imt_u, 
+                   COALESCE(s.kategori_status, 'Belum Dihitung') AS kategori_status 
+            FROM anak a
+            JOIN pengukuran p ON a.nik_anak = p.nik_anak
+            LEFT JOIN status_gizi s ON p.id_pengukuran = s.id_pengukuran
             WHERE a.username_ortu = %s
             ORDER BY p.tanggal_pengukuran DESC
         """
@@ -599,10 +603,15 @@ def gizi():
     else:
         if cari:
             query = """
-                SELECT a.nama_lengkap, p.usia_bulan, s.bb_u, s.tb_u, s.bb_tb, s.imt_u, s.kategori_status 
-                FROM status_gizi s
-                JOIN pengukuran p ON s.id_pengukuran = p.id_pengukuran
-                JOIN anak a ON p.nik_anak = a.nik_anak
+                SELECT a.nama_lengkap, p.usia_bulan, 
+                       COALESCE(s.bb_u, 'Belum Dihitung') AS bb_u, 
+                       COALESCE(s.tb_u, 'Belum Dihitung') AS tb_u, 
+                       COALESCE(s.bb_tb, '-') AS bb_tb, 
+                       COALESCE(s.imt_u, '-') AS imt_u, 
+                       COALESCE(s.kategori_status, 'Belum Dihitung') AS kategori_status 
+                FROM anak a
+                JOIN pengukuran p ON a.nik_anak = p.nik_anak
+                LEFT JOIN status_gizi s ON p.id_pengukuran = s.id_pengukuran
                 WHERE a.nik_anak = %s OR a.no_register_kms = %s
                 ORDER BY p.tanggal_pengukuran DESC
             """
@@ -620,7 +629,6 @@ def gizi():
         kategori_db = item.get('kategori_status') or ''
         usia = float(item.get('usia_bulan') or 0)
 
-        # Pencocokan fleksibel agar resep selalu ditemukan tanpa pesan kosong
         if 'Kurang' in bb_u or 'Buruk' in bb_u or 'Kurang' in kategori_db:
             target_keywords = ['Gizi Kurang', 'Gizi Buruk', 'Kurang']
         elif 'Lebih' in bb_u or 'Obesitas' in bb_u or 'Risiko' in bb_u or 'Lebih' in kategori_db:
