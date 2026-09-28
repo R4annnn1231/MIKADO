@@ -427,6 +427,119 @@ def pengukuran():
     conn.close()
     return render_template('ui_pengukuran.html', data_pengukuran=data_pengukuran, daftar_anak=daftar_anak, role=session['role'])
 
+@app.route('/edit_pengukuran/<int:id_pengukuran>', methods=['POST'])
+def edit_pengukuran(id_pengukuran):
+    if session.get('role') != 'admin':
+        flash('Akses ditolak: Hanya admin yang dapat mengubah data.', 'danger')
+        return redirect(url_for('pengukuran'))
+
+    tgl_ukur = request.form['tanggal_pengukuran']
+    usia = float(request.form['usia_bulan'])
+    bb = float(request.form['berat_badan'])
+    tb = float(request.form['tinggi_badan'])
+    lingkar = request.form.get('lingkar_kepala', 0)
+    lila = request.form.get('lila', 0)
+
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+
+    try:
+        cursor.execute("""
+            SELECT a.jenis_kelamin, p.nik_anak 
+            FROM pengukuran p 
+            JOIN anak a ON p.nik_anak = a.nik_anak 
+            WHERE p.id_pengukuran = %s
+        """, (id_pengukuran,))
+        anak_info = cursor.fetchone()
+        
+        if not anak_info:
+            flash('Gagal: Data pengukuran tidak ditemukan!', 'danger')
+            return redirect(url_for('pengukuran'))
+
+        jk = anak_info['jenis_kelamin']
+        nik_anak = anak_info['nik_anak']
+
+        cursor.execute("""
+            UPDATE pengukuran 
+            SET tanggal_pengukuran=%s, usia_bulan=%s, berat_badan=%s, tinggi_badan=%s, lingkar_kepala=%s, lila=%s 
+            WHERE id_pengukuran=%s
+        """, (tgl_ukur, usia, bb, tb, lingkar, lila, id_pengukuran))
+
+        cursor.execute("SELECT berat_badan FROM pengukuran WHERE nik_anak = %s AND id_pengukuran < %s ORDER BY usia_bulan DESC LIMIT 1", (nik_anak, id_pengukuran))
+        data_lama = cursor.fetchone()
+        
+        tren_status = "Data Awal"
+        if data_lama:
+            bb_lama = float(data_lama['berat_badan'])
+            if bb <= bb_lama:
+                tren_status = "T (Tidak Naik/Turun) ⚠️"
+            else:
+                tren_status = "N (Naik) ✅"
+
+        if jk == 'L':
+            bb_normal_bawah = (usia * 0.2) + 3.0  
+            bb_normal_atas = (usia * 0.25) + 4.5  
+            tb_normal_bawah = (usia * 0.8) + 48.0 
+        else:
+            bb_normal_bawah = (usia * 0.18) + 2.8 
+            bb_normal_atas = (usia * 0.23) + 4.2 
+            tb_normal_bawah = (usia * 0.75) + 47.0 
+            
+        if bb < bb_normal_bawah:
+            bb_u_status = 'Gizi Kurang'
+            if bb < bb_normal_bawah - 1.5: bb_u_status = 'Gizi Buruk'
+        elif bb > bb_normal_atas:
+            bb_u_status = 'Risiko Lebih'
+        else:
+            bb_u_status = 'Berat Normal'
+            
+        if tb < tb_normal_bawah:
+            tb_u_status = 'Stunting (Pendek)'
+            if tb < tb_normal_bawah - 3: tb_u_status = 'Sangat Pendek'
+        else:
+            tb_u_status = 'Tinggi Normal'
+            
+        kategori_status = f"{bb_u_status} | {tb_u_status} | Tren: {tren_status}"
+
+        cursor.execute("""
+            UPDATE status_gizi 
+            SET bb_u=%s, tb_u=%s, kategori_status=%s 
+            WHERE id_pengukuran=%s
+        """, (bb_u_status, tb_u_status, kategori_status, id_pengukuran))
+
+        conn.commit()
+        flash('Data pengukuran berhasil diperbarui!', 'success')
+    except Exception as e:
+        conn.rollback()
+        flash(f'Gagal memperbarui data: {str(e)}', 'danger')
+    finally:
+        conn.close()
+
+    return redirect(url_for('pengukuran'))
+
+@app.route('/hapus_pengukuran/<int:id_pengukuran>', methods=['POST'])
+def hapus_pengukuran(id_pengukuran):
+    if session.get('role') != 'admin':
+        flash('Akses ditolak: Hanya admin yang dapat menghapus data.', 'danger')
+        return redirect(url_for('pengukuran'))
+
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    try:
+        cursor.execute("DELETE FROM status_gizi WHERE id_pengukuran = %s", (id_pengukuran,))
+        cursor.execute("DELETE FROM pengukuran WHERE id_pengukuran = %s", (id_pengukuran,))
+        
+        conn.commit()
+        flash('Data pengukuran berhasil dihapus secara permanen!', 'success')
+    except Exception as e:
+        conn.rollback()
+        flash(f'Gagal menghapus data: {str(e)}', 'danger')
+    finally:
+        conn.close()
+
+    return redirect(url_for('pengukuran'))
+
 
 @app.route('/gizi')
 def gizi():
