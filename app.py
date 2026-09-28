@@ -263,20 +263,48 @@ def audit():
         daftar_anak = cursor.fetchall()
         
         data_audit = None
-        nik_terpilih = request.args.get('nik') or (request.form.get('nik') if request.method == 'POST' else None)
+        cari_input = request.args.get('cari') or request.args.get('nik') or (request.form.get('cari') if request.method == 'POST' else None) or (request.form.get('nik') if request.method == 'POST' else None)
+        tgl_mulai = request.args.get('tgl_mulai') or (request.form.get('tgl_mulai') if request.method == 'POST' else None)
+        tgl_selesai = request.args.get('tgl_selesai') or (request.form.get('tgl_selesai') if request.method == 'POST' else None)
         
-        if nik_terpilih:
-            cursor.execute("SELECT * FROM anak WHERE nik_anak = %s", (nik_terpilih,))
+        if cari_input:
+            if session['role'] == 'ortu':
+                cursor.execute("""
+                    SELECT * FROM anak 
+                    WHERE (nik_anak = %s OR no_register_kms = %s) AND username_ortu = %s
+                """, (cari_input, cari_input, session['username']))
+            else:
+                cursor.execute("""
+                    SELECT * FROM anak 
+                    WHERE nik_anak = %s OR no_register_kms = %s
+                """, (cari_input, cari_input))
+                
             anak = cursor.fetchone()
             
             if anak:
-                cursor.execute("""
+                nik_terpilih = anak['nik_anak']
+                
+                query_pengukuran = """
                     SELECT p.*, s.bb_u, s.tb_u, s.bb_tb, s.imt_u, s.kategori_status 
                     FROM pengukuran p 
                     LEFT JOIN status_gizi s ON p.id_pengukuran = s.id_pengukuran 
-                    WHERE p.nik_anak = %s 
-                    ORDER BY p.usia_bulan DESC
-                """, (nik_terpilih,))
+                    WHERE p.nik_anak = %s
+                """
+                params = [nik_terpilih]
+                
+                if tgl_mulai and tgl_selesai:
+                    query_pengukuran += " AND p.tanggal_pengukuran BETWEEN %s AND %s"
+                    params.extend([tgl_mulai, tgl_selesai])
+                elif tgl_mulai:
+                    query_pengukuran += " AND p.tanggal_pengukuran >= %s"
+                    params.append(tgl_mulai)
+                elif tgl_selesai:
+                    query_pengukuran += " AND p.tanggal_pengukuran <= %s"
+                    params.append(tgl_selesai)
+                    
+                query_pengukuran += " ORDER BY p.tanggal_pengukuran DESC, p.usia_bulan DESC"
+                
+                cursor.execute(query_pengukuran, tuple(params))
                 riwayat_pengukuran = cursor.fetchall()
                 
                 cursor.execute("SELECT * FROM riwayat_kesehatan WHERE nik_anak = %s ORDER BY id_riwayat DESC", (nik_terpilih,))
@@ -291,9 +319,11 @@ def audit():
                     'kesehatan': riwayat_kesehatan,
                     'perkembangan': perkembangan
                 }
+            else:
+                flash("Data anak dengan NIK atau No. KMS tersebut tidak ditemukan.", "danger")
                 
         conn.close()
-        return render_template('ui_audit.html', daftar_anak=daftar_anak, data_audit=data_audit, nik_terpilih=nik_terpilih, role=session['role'])
+        return render_template('ui_audit.html', daftar_anak=daftar_anak, data_audit=data_audit, cari_input=cari_input, tgl_mulai=tgl_mulai, tgl_selesai=tgl_selesai, role=session['role'])
         
     except Exception as e:
         error_detail = traceback.format_exc()
@@ -750,7 +780,7 @@ def riwayat():
     cari = request.args.get('cari')
     if session['role'] == 'ortu':
         cursor.execute("""
-            SELECT r.*, 
+            SELECT r., 
                    r.riwayat_imunisasi AS imunisasi, 
                    r.riwayat_penyakit_alergi AS catatan_penyakit,
                    CURRENT_DATE() AS tanggal_catat,
@@ -765,7 +795,7 @@ def riwayat():
     else:
         if cari:
             cursor.execute("""
-                SELECT r.*, 
+                SELECT r., 
                        r.riwayat_imunisasi AS imunisasi, 
                        r.riwayat_penyakit_alergi AS catatan_penyakit,
                        CURRENT_DATE() AS tanggal_catat,
