@@ -27,16 +27,14 @@
         
         .kop-surat { display: none; }
 
-        /* Sembunyikan bagian tertentu saat cetak jika tidak dipilih */
         @media print {
             @page { size: A4 portrait; margin: 15mm; }
             body { background: white !important; color: black !important; }
             .d-print-none, .btn, form, .navbar-custom { display: none !important; }
-            .card { border: none !important; box-shadow: none !important; margin-bottom: 15px !important; }
+            .card { border: none !important; box-shadow: none !important; margin-bottom: 15mm !important; }
             .bg-ungu { background-color: #6f42c1 !important; color: white !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
             .kop-surat { display: block !important; }
             
-            /* Kontrol visibilitas cetak berdasarkan checkbox */
             .section-gizi { display: var(--print-gizi, block) !important; }
             .section-grafik { display: var(--print-grafik, block) !important; page-break-inside: avoid; }
             .section-imunisasi { display: var(--print-imunisasi, block) !important; }
@@ -249,13 +247,12 @@
     <!-- SCRIPT CHART & CETAK AUDIT TERPILIH -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
-        // Render grafik jika data audit ada
         {% if data_audit and data_audit.pengukuran %}
         document.addEventListener("DOMContentLoaded", function() {
             let rawData = [
                 {% for p in data_audit.pengukuran %}
                 { usia: {{ p.usia_bulan }}, bb: {{ p.berat_badan }}, tb: {{ p.tinggi_badan }} },
-                {% endfor %>
+                {% endfor %}
             ];
             rawData.sort((a, b) => a.usia - b.usia);
 
@@ -284,7 +281,6 @@
         });
         {% endif %}
 
-        // Fungsi cetak dinamis berdasarkan checkbox filter bagian audit
         function cetakAudit() {
             let gizi = document.getElementById('chkGizi').checked ? 'block' : 'none';
             let grafik = document.getElementById('chkGrafik').checked ? 'block' : 'none';
