@@ -1,3 +1,5 @@
 Flask
 mysql-connector-python
 gunicorn
+google-genai
+python-dotenv
