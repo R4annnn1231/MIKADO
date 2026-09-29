@@ -10,9 +10,6 @@ from google.genai import types
 # Memuat variabel dari file .env secara otomatis (jika dijalankan lokal)
 load_dotenv()
 
-# Inisialisasi client Gemini menggunakan environment variable yang aman
-client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
-
 app = Flask(__name__)
 app.secret_key = 'mikado_rahasia_aman_123'
 
@@ -957,10 +954,12 @@ def api_ai_chat():
         return jsonify({'status': 'error', 'message': 'Pesan kosong'}), 400
 
     try:
+        # Inisialisasi client Gemini dipindahkan ke sini (Lazy Loading) agar hemat RAM
+        client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
+        
         response = client.models.generate_content(
-    model='gemini-3.8-flash',
-    contents=user_msg,
-    # ... (kode lainnya biarkan sama)
+            model='gemini-3.8-flash',
+            contents=user_msg,
             config=types.GenerateContentConfig(
                 system_instruction=(
                     "Anda adalah 'Asisten AI MIKAdO', kecerdasan buatan medis dan teknis yang ramah, "
@@ -979,6 +978,8 @@ def api_ai_chat():
         )
         reply = response.text
     except Exception as e:
+        # Perintah ini dicantumkan kembali agar jika ada masalah, akan terekam jelas di log Render
+        print(f"ERROR GOOGLE GENAI: {str(e)}")
         reply = (
             "Halo Ayah/Bunda! 👋 Saat ini Asisten AI sedang mengalami kendala koneksi sistem. "
             "Jika ada hal mendesak seputar tumbuh kembang si kecil, silakan gunakan tombol "
