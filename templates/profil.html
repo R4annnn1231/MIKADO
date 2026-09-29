@@ -245,9 +245,9 @@
                                     <a href="https://wa.me/6281234567890?text=Halo%20Tim%20Support%20MIKAdO,%20saya%20membutuhkan%20bantuan%20terkait%20kendala%20sistem." target="_blank" class="btn btn-success btn-sm fw-bold">
                                         <i class="bi bi-whatsapp"></i> Hubungi WhatsApp
                                     </a>
-                                    <a href="mailto:support@mikado.sehat?subject=Kendala%20Sistem%20MIKAdO" class="btn btn-outline-dark btn-sm fw-bold">
+                                    <button type="button" class="btn btn-outline-dark btn-sm fw-bold" data-bs-toggle="modal" data-bs-target="#emailModal">
                                         <i class="bi bi-envelope-fill"></i> Kirim Email
-                                    </a>
+                                    </button>
                                 </div>
                             </div>
 
@@ -270,6 +270,30 @@
                         </div>
                     </a>
 
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL FORM KIRIM EMAIL SUPPORT -->
+    <div class="modal fade" id="emailModal" tabindex="-1" aria-labelledby="emailModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header bg-ungu text-white">
+                    <h5 class="modal-title fw-bold" id="emailModalLabel"><i class="bi bi-envelope-fill"></i> Kirim Email ke Tim Support</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div id="emailAlert" class="alert d-none" role="alert"></div>
+                    <div class="mb-3">
+                        <label for="supportPesan" class="form-label fw-bold text-secondary">Pesan / Kendala Teknis:</label>
+                        <textarea class="form-control" id="supportPesan" rows="4" placeholder="Jelaskan kendala atau pertanyaan yang ingin Anda sampaikan ke tim MIKAdO..."></textarea>
+                    </div>
+                    <small class="text-muted">Pesan akan dikirim langsung ke <strong>official.support.mikado@gmail.com</strong>.</small>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Tutup</button>
+                    <button type="button" class="btn btn-ungu btn-sm fw-bold px-3" onclick="kirimEmailSupport()">Kirim Pesan Sekarang</button>
                 </div>
             </div>
         </div>
@@ -302,17 +326,14 @@
             let pesanUser = inputField.value.trim();
             if (!pesanUser) return;
 
-            // Tambahkan bubble chat dari User
             chatBox.innerHTML += `<div class="chat-bubble chat-user"><b>Anda:</b><br>${pesanUser}</div>`;
             inputField.value = '';
             chatBox.scrollTop = chatBox.scrollHeight;
 
-            // Tambahkan indikator "sedang mengetik"
             let loadingId = 'loading_' + Date.now();
             chatBox.innerHTML += `<div id="${loadingId}" class="chat-bubble chat-ai typing-indicator">🤖 Asisten AI sedang mengetik...</div>`;
             chatBox.scrollTop = chatBox.scrollHeight;
 
-            // Kirim request ke API Flask
             fetch('/api/ai_chat', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -332,6 +353,50 @@
                 document.getElementById(loadingId).remove();
                 chatBox.innerHTML += `<div class="chat-bubble chat-ai text-danger"><b>🤖 Asisten AI:</b><br>Koneksi ke server AI terputus. Silakan coba lagi nanti.</div>`;
                 chatBox.scrollTop = chatBox.scrollHeight;
+            });
+        }
+
+        // Fungsi Kirim Email Support via Backend Flask
+        function kirimEmailSupport() {
+            let pesan = document.getElementById('supportPesan').value.trim();
+            let alertBox = document.getElementById('emailAlert');
+
+            if (!pesan) {
+                alertBox.className = "alert alert-danger py-2 small";
+                alertBox.textContent = "Pesan kendala tidak boleh kosong!";
+                alertBox.classList.remove('d-none');
+                return;
+            }
+
+            alertBox.className = "alert alert-info py-2 small";
+            alertBox.textContent = "Sedang mengirim email ke tim support...";
+            alertBox.classList.remove('d-none');
+
+            fetch('/api/send_support_email', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ pesan: pesan })
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    alertBox.className = "alert alert-success py-2 small";
+                    alertBox.textContent = data.message;
+                    document.getElementById('supportPesan').value = '';
+                    setTimeout(() => {
+                        let modalEl = document.getElementById('emailModal');
+                        let modal = bootstrap.Modal.getInstance(modalEl);
+                        modal.hide();
+                        alertBox.classList.add('d-none');
+                    }, 2000);
+                } else {
+                    alertBox.className = "alert alert-danger py-2 small";
+                    alertBox.textContent = data.message || "Gagal mengirim email.";
+                }
+            })
+            .catch(err => {
+                alertBox.className = "alert alert-danger py-2 small";
+                alertBox.textContent = "Terjadi kesalahan koneksi ke server.";
             });
         }
     </script>
