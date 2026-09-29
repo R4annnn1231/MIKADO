@@ -958,8 +958,9 @@ def api_ai_chat():
 
     try:
         response = client.models.generate_content(
-            model='gemini-2.5-flash',
-            contents=user_msg,
+    model='gemini-3.8-flash',
+    contents=user_msg,
+    # ... (kode lainnya biarkan sama)
             config=types.GenerateContentConfig(
                 system_instruction=(
                     "Anda adalah 'Asisten AI MIKAdO', kecerdasan buatan medis dan teknis yang ramah, "
