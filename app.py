@@ -3,6 +3,9 @@ from werkzeug.security import generate_password_hash, check_password_hash
 import mysql.connector
 import traceback
 import os
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 from dotenv import load_dotenv
 from google import genai
 from google.genai import types
@@ -978,7 +981,6 @@ def api_ai_chat():
         )
         reply = response.text
     except Exception as e:
-        # Perintah ini dicantumkan kembali agar jika ada masalah, akan terekam jelas di log Render
         print(f"ERROR GOOGLE GENAI: {str(e)}")
         reply = (
             "Halo Ayah/Bunda! 👋 Saat ini Asisten AI sedang mengalami kendala koneksi sistem. "
@@ -990,6 +992,56 @@ def api_ai_chat():
         'status': 'success',
         'reply': reply
     })
+
+# ==========================================
+# 7. FITUR KIRIM EMAIL DUKUNGAN (SUPPORT)
+# ==========================================
+@app.route('/api/send_support_email', methods=['POST'])
+def send_support_email():
+    if 'role' not in session:
+        return jsonify({'status': 'error', 'message': 'Unauthorized'}), 401
+        
+    data = request.get_json()
+    user_pesan = data.get('pesan', '')
+    pengirim_user = session.get('username', 'Orang Tua')
+    
+    if not user_pesan.strip():
+        return jsonify({'status': 'error', 'message': 'Pesan tidak boleh kosong'}), 400
+
+    smtp_server = "smtp.gmail.com"
+    smtp_port = 587
+    sender_email = os.getenv("MAIL_USERNAME")
+    sender_password = os.getenv("MAIL_PASSWORD")
+    receiver_email = sender_email  # Pesan terkirim ke email support Anda sendiri
+
+    msg = MIMEMultipart()
+    msg['From'] = sender_email
+    msg['To'] = receiver_email
+    msg['Subject'] = f"🚨 Bantuan Teknis MIKAdO - Dari: {pengirim_user}"
+
+    body = f"""
+    Halo Tim Pengembang MIKAdO,
+    
+    Ada pesan permintaan bantuan teknis baru dari pengguna aplikasi:
+    - Username: {pengirim_user}
+    - Pesan/Kendala: 
+    {user_pesan}
+    
+    Silakan segera ditindaklanjuti.
+    """
+    msg.attach(MIMEText(body, 'plain'))
+
+    try:
+        server = smtplib.SMTP(smtp_server, smtp_port)
+        server.starttls()
+        server.login(sender_email, sender_password)
+        server.sendmail(sender_email, receiver_email, msg.as_string())
+        server.quit()
+        
+        return jsonify({'status': 'success', 'message': 'Email dukungan berhasil dikirim!'})
+    except Exception as e:
+        print(f"ERROR EMAIL: {str(e)}")
+        return jsonify({'status': 'error', 'message': 'Gagal mengirim email, silakan coba lagi.'}), 500
 
 if __name__ == '__main__':
     app.run(debug=True, ssl_context='adhoc')
